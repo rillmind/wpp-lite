@@ -19,7 +19,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
 - Mostra o nome de cada contato como está na agenda do seu celular; sem nome salvo, o nome que a
   pessoa definiu no WhatsApp; sem nenhum dos dois, o número. Em grupos, mostra quem mandou cada
   mensagem, cada pessoa numa cor (as 14 cores de destaque do Catppuccin, sorteadas ao abrir a
-  conversa; uma cor só se repete com mais de 14 pessoas). As marcações (`@`) aparecem com o nome
+  conversa; uma cor só se repete com mais de 14 pessoas) e com a foto de perfil dela ao lado da
+  primeira mensagem de cada sequência. As marcações (`@`) aparecem com o nome
   da pessoa, destacadas, e com fundo quando quem foi marcado é você. Clicar no nome de quem
   mandou ou numa marcação abre a conversa com a pessoa; se ainda não houver, abre uma vazia, que
   entra na lista na primeira mensagem. Telefones escritos nas mensagens (com `+DDI`, ou brasileiros
