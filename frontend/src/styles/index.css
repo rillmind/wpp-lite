@@ -363,6 +363,10 @@ code {
 .msg-row--out {
   justify-content: flex-end;
 }
+/* Em grupo a foto já faz a margem: a lateral esquerda fica curta. */
+.messages--group {
+  padding-left: 0.5rem;
+}
 /* Foto de quem mandou, em grupos (o espaço fica mesmo sem foto, para alinhar). */
 .msg-row__avatar {
   flex: none;

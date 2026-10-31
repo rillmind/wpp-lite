@@ -175,7 +175,7 @@ export function Conversation({
       )}
 
       <div
-        className="messages"
+        className={isGroup ? 'messages messages--group' : 'messages'}
         ref={scroller}
         onScroll={(e) => {
           const el = e.currentTarget
