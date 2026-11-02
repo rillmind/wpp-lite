@@ -52,6 +52,16 @@ export interface Message {
   pinned: boolean
   /** Pessoas marcadas; no texto aparecem como `@` + a parte do jid antes do `@`. */
   mentions?: Mention[]
+  /** Reações, uma por pessoa, da mais antiga para a mais nova. */
+  reactions?: Reaction[]
+}
+
+export interface Reaction {
+  emoji: string
+  /** Quem reagiu; `null` = você. */
+  sender_jid: string | null
+  /** "Você", agenda, apelido ou "+telefone". */
+  sender_name?: string
 }
 
 export interface Mention {

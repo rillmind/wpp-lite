@@ -1,4 +1,5 @@
 import type { Chat, Live, MsgStatus } from '../api/types'
+import { getDraft } from '../api/drafts'
 import { Avatar } from './Avatar'
 import { chatName, formatListTime, formatPerson, liveText } from './format'
 
@@ -43,6 +44,10 @@ export function ChatList({ chats, selected, onSelect, onMenu, live }: Props) {
               <span className="chat-item__bottom">
                 {live[c.jid]?.typing ? (
                   <span className="chat-item__preview chat-item__typing">{liveText({ typing: live[c.jid].typing })}</span>
+                ) : c.jid !== selected && getDraft(c.jid) ? (
+                  <span className="chat-item__preview">
+                    <span className="chat-item__draft">Rascunho:</span> {getDraft(c.jid)}
+                  </span>
                 ) : (
                   <span className="chat-item__preview">
                     {c.last_status && (

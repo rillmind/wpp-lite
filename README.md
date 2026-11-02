@@ -16,6 +16,9 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   pontinho mostra a conexão: verde conectado, amarelo conectando ou servidor desconectado, vermelho
   sessão encerrada; passar o mouse (ou tocar, no celular) mostra o texto. O botão de Status abre direto a conversa do Status. Status e
   canais são só de leitura: daqui não dá para postar um status nem escrever num canal.
+- Busca, no topo da lista, conversas pelo nome (ou número) e mensagens pelo texto, sem ligar para
+  maiúsculas nem acentos, em tudo o que já está guardado no servidor (não pergunta ao celular).
+  Clicar numa mensagem achada abre a conversa nela, piscando; Esc limpa a busca.
 - Mostra o nome de cada contato como está na agenda do seu celular; sem nome salvo, o nome que a
   pessoa definiu no WhatsApp; sem nenhum dos dois, o número. Em grupos, mostra quem mandou cada
   mensagem, cada pessoa numa cor (as 14 cores de destaque do Catppuccin, sorteadas ao abrir a
@@ -43,6 +46,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   selecionada (em telas de toque não, para não abrir o teclado). O Esc vai um passo por vez:
   fecha a imagem ampliada, desmarca a mensagem marcada para responder, tira o cursor da caixa de
   mensagem e, por fim, fecha a conversa e volta à tela inicial.
+- Atalhos de teclado: **Ctrl+K** (⌘K no Mac) vai para a busca; **Alt+↑** e **Alt+↓** abrem a
+  conversa de cima ou de baixo na lista da seção aberta.
 - Notificações no navegador (o sino na barra lateral), com a aba aberta, mesmo em segundo
   plano. O celular continua tocando e vibrando normalmente: a notificação do app vem logo depois
   e não muda nada do que o WhatsApp manda para ele. Não notifica conversas silenciadas, arquivadas,
@@ -51,10 +56,20 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
 - Instala no celular como app (PWA): pelo endereço HTTPS, no Chrome do Android **⋮ → Instalar
   app** (ou "Adicionar à tela inicial"), no iPhone **Compartilhar → Adicionar à Tela de Início**.
   Abre em tela cheia, sem barra de endereço, com ícone próprio.
+- O número de conversas não lidas aparece no ícone do app instalado (onde o sistema mostra) e no
+  título da aba, como "(3) WhatsApp Lite"; silenciadas e arquivadas não contam. Atualiza enquanto o
+  app está aberto, mesmo em segundo plano.
 - Envia imagens, vídeos e documentos: pelo clipe ao lado da caixa de mensagem ou colando
   (Ctrl+V) uma imagem ou arquivo copiado, como um print. Os arquivos aparecem antes de enviar (dá
   para tirar), o texto escrito vira a legenda do primeiro, e vão ao clicar em "Enviar". JPEG e PNG
   vão como foto, MP4 como vídeo e o resto (inclusive GIF) como documento, até 100 MB.
+- Grava e manda mensagem de voz: com a caixa vazia, o botão de enviar vira um microfone. Segurar e
+  soltar envia; um toque rápido começa a gravar e mostra o tempo, com 🗑 para descartar (ou Esc) e
+  "Enviar". Chega como áudio gravado na hora (com a forma de onda), igual ao do celular; menos de
+  1 segundo é descartado. Precisa do endereço HTTPS (o navegador só libera o microfone nele).
+- Rascunho por conversa: o que você escreveu e não mandou continua lá quando volta para a conversa
+  (e aparece na lista como "Rascunho: …"). Fica só nesta aba do navegador: sobrevive a recarregar a
+  página e some ao fechar a aba; não vai para o servidor.
 - Envia mensagens de texto. No computador, Enter envia e Shift+Enter quebra linha; no celular,
   Enter quebra linha, só o botão "Enviar" envia, e o teclado continua aberto depois do envio. Cada conversa tem o seu
   rascunho: trocar de conversa não leva o texto junto.
@@ -74,6 +89,10 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   WhatsApp (as recebidas). Excluir e denunciar pedem confirmação. Tudo vale também no celular. A
   mensagem fixada aparece no topo da conversa e as favoritadas ganham uma estrela. Mensagens que a
   pessoa apaga para todos viram "Mensagem apagada" aqui também.
+- Reações: os emojis aparecem embaixo da mensagem, com quantas pessoas reagiram (passar o mouse
+  mostra quem). No topo do menu da mensagem ficam as reações rápidas (👍 ❤️ 😂 😮 😢 🙏); clicar num
+  emoji embaixo da mensagem reage com ele, e clicar de novo na sua reação a tira. Vale também no
+  celular e para quem mandou.
 - Ao abrir uma conversa, marca as mensagens como lidas (o contato vê os tiques azuis e o contador
   zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, no topo da lista,
   abrir não marca nada: só o botão "Marcar como lida" faz isso. O que você lê no celular também

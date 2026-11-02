@@ -41,6 +41,15 @@ pub enum WaEvent {
     id: String,
     starred: bool,
   },
+  /// Reação posta (ou trocada) numa mensagem; `emoji` vazio tira a reação.
+  Reaction {
+    chat_jid: String,
+    msg_id: String,
+    /// Quem reagiu; `None` = nós (de outro aparelho).
+    sender_jid: Option<String>,
+    emoji: String,
+    ts_ms: i64,
+  },
   /// Alguém começou (`Some`) ou parou (`None`) de digitar ou gravar áudio. Não é gravado.
   Typing {
     chat_jid: String,
@@ -119,10 +128,10 @@ pub enum WaEvent {
   },
 }
 
-/// Arquivo para enviar (imagem, vídeo ou documento).
+/// Arquivo para enviar (imagem, vídeo, mensagem de voz ou documento).
 #[derive(Debug, Clone)]
 pub struct OutgoingMedia {
-  /// `Image`, `Video` ou `Doc`.
+  /// `Image`, `Video`, `Audio` (mensagem de voz) ou `Doc`.
   pub kind: crate::model::MessageKind,
   pub bytes: Vec<u8>,
   pub mimetype: String,
@@ -131,6 +140,10 @@ pub struct OutgoingMedia {
   pub width: Option<u32>,
   pub height: Option<u32>,
   pub seconds: Option<u32>,
+  /// Mensagem de voz (`Audio`): toca como gravada na hora, com a forma de onda.
+  pub voice: bool,
+  /// 64 valores de 0 a 100 (a forma de onda que o celular desenha na mensagem de voz).
+  pub waveform: Option<Vec<u8>>,
 }
 
 /// Referência a uma mensagem recebida, para recibo de leitura.
@@ -159,6 +172,9 @@ pub trait WhatsApp: Send + Sync {
 
   /// Favorita, fixa, apaga ou denuncia uma mensagem (também no celular).
   async fn message_action(&self, msg: &Message, action: MessageAction) -> Result<()>;
+
+  /// Reage a uma mensagem; `emoji` vazio tira a nossa reação.
+  async fn react(&self, msg: &Message, emoji: &str) -> Result<()>;
 
   /// Encaminha uma mensagem (texto ou mídia, sem subir o arquivo de novo).
   async fn forward(&self, to_jid: &str, msg: &Message, media: Option<&MediaRef>) -> Result<Sent>;

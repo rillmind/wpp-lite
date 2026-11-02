@@ -265,6 +265,46 @@ code {
   opacity: 1;
 }
 
+/* Busca (conversas e mensagens do banco local) */
+.search {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.search__input {
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-hover);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.search__input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.search-results__title {
+  margin: 0;
+  padding: 0.75rem 1rem 0.35rem;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.search-results__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.search-hit {
+  border-radius: 3px;
+  background: none;
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* Lista de chats */
 .chat-list {
   flex: 1;
@@ -968,6 +1008,59 @@ code {
   font-size: 1.1rem;
 }
 
+.menu__reactions {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.2rem 0.5rem 0.4rem;
+  border-bottom: 1px solid var(--ctp-surface1);
+  margin-bottom: 0.2rem;
+}
+.menu__reaction {
+  padding: 0.2rem 0.3rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.menu__reaction:hover,
+.menu__reaction:focus-visible {
+  background: var(--ctp-surface1);
+}
+.menu__reaction[aria-pressed='true'] {
+  background: var(--ctp-surface2);
+}
+/* Reações embaixo do balão */
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3rem;
+}
+.reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgb(17 17 27 / 0.35);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.reaction:disabled {
+  cursor: default;
+}
+.reaction[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+.reaction__count {
+  font-size: 0.75rem;
+  opacity: 0.85;
+}
 .menu__item--danger {
   color: var(--ctp-red);
 }
@@ -1131,4 +1224,40 @@ code {
 .topbar__sub--typing,
 .chat-item__typing {
   color: var(--ok);
+}
+
+/* Gravando mensagem de voz */
+.composer__row--recording {
+  align-items: center;
+}
+.recording {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.recording__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ctp-red);
+  animation: recording-pulse 1s ease-in-out infinite;
+}
+@keyframes recording-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.composer__mic {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* "Rascunho:" na lista, para a conversa com texto não enviado */
+.chat-item__draft {
+  color: var(--ok);
+  font-weight: 600;
 }

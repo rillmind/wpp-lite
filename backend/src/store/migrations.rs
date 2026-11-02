@@ -97,6 +97,15 @@ pub(super) const MIGRATIONS: &[&str] = &[
   // 11: arquivar pelo app fica só no app. `archived` passa a ser o estado do celular;
   // `archived_app` a escolha feita aqui (NULL = segue o celular), que vale por cima.
   "ALTER TABLE chats ADD COLUMN archived_app INTEGER;",
+  // 12: reações, uma por pessoa e mensagem (`sender_jid` vazio = nós).
+  "CREATE TABLE reactions (
+     chat_jid   TEXT NOT NULL,
+     msg_id     TEXT NOT NULL,
+     sender_jid TEXT NOT NULL,
+     emoji      TEXT NOT NULL,
+     ts_ms      INTEGER NOT NULL,
+     PRIMARY KEY (chat_jid, msg_id, sender_jid)
+   );",
 ];
 
 pub fn run(conn: &mut Connection) -> Result<()> {

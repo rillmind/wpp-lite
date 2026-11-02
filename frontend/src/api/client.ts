@@ -94,6 +94,9 @@ const enc = encodeURIComponent
 
 export const api = {
   chats: () => request<Chat[]>('/api/chats?limit=500'),
+  /** Busca local: conversas pelo nome e mensagens pelo texto (mais novas primeiro). */
+  search: (q: string, signal?: AbortSignal) =>
+    request<{ chats: Chat[]; messages: Message[] }>(`/api/search?q=${enc(q)}`, { signal }),
   messages: (jid: string, opts: { before?: number; limit?: number } = {}) => {
     const q = new URLSearchParams()
     if (opts.before != null) q.set('before', String(opts.before))
@@ -134,6 +137,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(days ? { action, days } : { action }),
     }),
+  /** Reage com `emoji`; vazio tira a reação. */
+  react: (jid: string, id: string, emoji: string) =>
+    request<Message | null>(`/api/chats/${enc(jid)}/messages/${enc(id)}/react`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
+    }),
   forward: (jid: string, id: string, to: string[]) =>
     request<Message[]>(`/api/chats/${enc(jid)}/messages/${enc(id)}/forward`, {
       method: 'POST',
@@ -144,12 +153,22 @@ export const api = {
   /** Envia um arquivo; o tipo (imagem, vídeo ou documento) sai do `Content-Type`. */
   sendMedia: (
     jid: string,
-    file: File,
-    opts: { caption?: string | null; width?: number; height?: number; seconds?: number },
+    file: Blob,
+    opts: {
+      caption?: string | null
+      width?: number
+      height?: number
+      seconds?: number
+      /** Mensagem de voz gravada aqui (com a forma de onda em hexadecimal). */
+      voice?: boolean
+      waveform?: string | null
+    },
   ) => {
     const q = new URLSearchParams()
-    if (file.name) q.set('name', file.name)
+    if (file instanceof File && file.name) q.set('name', file.name)
     if (opts.caption) q.set('caption', opts.caption)
+    if (opts.voice) q.set('voice', 'true')
+    if (opts.voice && opts.waveform) q.set('waveform', opts.waveform)
     for (const k of ['width', 'height', 'seconds'] as const) {
       const v = opts[k]
       if (v) q.set(k, String(v))

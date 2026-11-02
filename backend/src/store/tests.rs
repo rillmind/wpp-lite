@@ -21,6 +21,7 @@ fn msg(chat: &str, id: &str, ts: i64, from_me: bool, is_read: bool) -> Message {
     starred: false,
     pinned: false,
     mentions: vec![],
+    reactions: vec![],
   }
 }
 
@@ -637,4 +638,129 @@ fn deleted_on_phone_goes_away_but_keeps_newer_messages() {
   assert!(!db.clear_chat(B, 99, true, false).unwrap());
   assert!(db.last_messages(B, 10, None).unwrap().is_empty());
   assert!(db.get_chat(B).unwrap().is_some());
+}
+
+#[test]
+fn search_ignores_case_and_accents() {
+  let db = db();
+  let mut m = msg(A, "1", 100, false, true);
+  m.body = Some("Reunião às 15h, confirma?".into());
+  db.insert_message(&m).unwrap();
+  let mut m = msg(B, "2", 200, false, true);
+  m.body = Some("reuniao cancelada".into());
+  db.insert_message(&m).unwrap();
+  db.insert_message(&msg(B, "3", 300, false, true)).unwrap();
+  let found: Vec<String> = db
+    .search_messages("REUNIÃO", 50)
+    .unwrap()
+    .into_iter()
+    .map(|m| m.id)
+    .collect();
+  assert_eq!(found, ["2", "1"], "mais nova primeiro");
+  assert!(db.search_messages("nada disso", 50).unwrap().is_empty());
+}
+
+#[test]
+fn search_skips_hidden_and_revoked() {
+  let mut db = db();
+  let mut m = msg(A, "1", 100, false, true);
+  m.body = Some("segredo".into());
+  db.insert_message(&m).unwrap();
+  db.revoke_message(A, "1").unwrap();
+  let mut h = msg(A, "2", 50, false, true);
+  h.body = Some("segredo velho".into());
+  db.import_history_chat(
+    &ChatMeta {
+      jid: A.into(),
+      ..Default::default()
+    },
+    None,
+    &[h],
+    Some("2"),
+  )
+  .unwrap();
+  assert!(db.search_messages("segredo", 50).unwrap().is_empty());
+}
+
+#[test]
+fn search_chats_by_name_or_phone() {
+  let db = db();
+  db.insert_message(&msg(A, "1", 100, false, true)).unwrap();
+  db.insert_message(&msg(B, "2", 200, false, true)).unwrap();
+  db.upsert_contact(&Contact {
+    jid: A.into(),
+    contact_name: Some("José Antônio".into()),
+    push_name: None,
+  })
+  .unwrap();
+  let names = |q: &str| -> Vec<String> {
+    db.search_chats(q, 20)
+      .unwrap()
+      .into_iter()
+      .map(|c| c.jid)
+      .collect()
+  };
+  assert_eq!(names("jose anto"), [A]);
+  assert_eq!(names("222"), [B]);
+  assert!(names("zzz").is_empty());
+}
+
+#[test]
+fn reactions_one_per_person_newest_wins() {
+  let db = db();
+  db.insert_message(&msg(A, "1", 100, false, true)).unwrap();
+  assert!(db.set_reaction(A, "1", Some(B), "👍", 1_000).unwrap());
+  assert!(db.set_reaction(A, "1", None, "❤️", 1_100).unwrap());
+  // Troca a do B; uma mais velha que chega atrasada não volta.
+  db.set_reaction(A, "1", Some(B), "😂", 2_000).unwrap();
+  db.set_reaction(A, "1", Some(B), "👍", 1_500).unwrap();
+  let m = db.get_message(A, "1").unwrap().unwrap();
+  let got: Vec<(&str, Option<&str>)> = m
+    .reactions
+    .iter()
+    .map(|r| (r.emoji.as_str(), r.sender_jid.as_deref()))
+    .collect();
+  assert_eq!(got, [("❤️", None), ("😂", Some(B))]);
+  assert_eq!(m.reactions[0].sender_name.as_deref(), Some("Você"));
+  // Vazio tira.
+  db.set_reaction(A, "1", None, "", 3_000).unwrap();
+  assert_eq!(db.get_message(A, "1").unwrap().unwrap().reactions.len(), 1);
+  // Mensagem que não existe aqui: ignora.
+  assert!(!db.set_reaction(A, "x", None, "👍", 1).unwrap());
+}
+
+#[test]
+fn history_reactions_are_stored_and_go_with_the_message() {
+  let mut db = db();
+  let mut m = msg(A, "1", 100, false, true);
+  m.reactions = vec![Reaction {
+    emoji: "🙏".into(),
+    sender_jid: Some(A.into()),
+    sender_name: None,
+    ts_ms: 10,
+  }];
+  db.import_history_chat(
+    &ChatMeta {
+      jid: A.into(),
+      ..Default::default()
+    },
+    None,
+    &[m],
+    None,
+  )
+  .unwrap();
+  assert_eq!(
+    db.last_messages(A, 10, None).unwrap()[0].reactions[0].emoji,
+    "🙏"
+  );
+  db.delete_message(A, "1").unwrap();
+  db.insert_message(&msg(A, "1", 100, false, true)).unwrap();
+  assert!(
+    db.get_message(A, "1")
+      .unwrap()
+      .unwrap()
+      .reactions
+      .is_empty(),
+    "apagar leva as reações junto"
+  );
 }
