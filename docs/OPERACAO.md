@@ -40,6 +40,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `GET /api/chats/{jid}/messages?limit=&before=` | últimas mensagens do banco local + `first_unread_id`; a primeira página sempre inclui todas as não lidas. Mensagens com imagem/figurinha trazem `media` |
 | `GET /api/chats/{jid}/messages/{id}/media` | baixa a imagem, figurinha, vídeo, áudio ou documento do WhatsApp na hora (`Cache-Control: no-store`; documento sempre como anexo; até 32 MB, vídeo até 100 MB) |
 | `GET /api/chats/{jid}/avatar` | foto de perfil, buscada na hora; `204` se não houver |
+| `POST /api/chats/{jid}/watch` | passa a receber "online" e "digitando…" da conversa individual aberta (deixa de acompanhar a anterior); chegam como `chat.presence` e `chat.typing` no SSE |
 | `POST /api/chats/{jid}/read` | recibos de leitura + marca lido no celular |
 | `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread", "hours"? }` (`hours` só em `mute`; sem ele, para sempre). `archive`/`unarchive` ficam só no app |
 | `POST /api/chats/{jid}/send` | `{ "text": "...", "reply_to"? }`, uma mensagem por requisição; `reply_to` cita outra mensagem da conversa |
@@ -47,7 +48,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `POST /api/chats/{jid}/messages/{id}/react` | `{ "emoji": "👍" }`; vazio tira a reação. Manda ao WhatsApp e devolve a mensagem com `reactions` (uma por pessoa; `sender_jid: null` = você) |
 | `POST /api/chats/{jid}/messages/{id}/forward` | `{ "to": ["jid", …] }`, até 5 conversas |
 | `POST /api/chats/{jid}/send-media?name=&caption=&width=&height=&seconds=&voice=&waveform=` | corpo = o arquivo, `Content-Type` = o tipo; até 100 MB. JPEG/PNG vão como imagem, MP4 como vídeo, o resto como documento. Com `voice=true` (Ogg/Opus ou MP4) vai como mensagem de voz; `waveform` = 64 valores de 0 a 100 em hexadecimal |
-| `GET /api/events` | SSE: `message.new`, `message.status`, `message.updated`, `message.deleted`, `chat.updated`, `connection.state` (e `resync`) |
+| `GET /api/events` | SSE: `message.new`, `message.status`, `message.updated`, `message.deleted`, `chat.updated`, `connection.state`, `chat.typing`, `chat.presence` (e `resync`) |
 
 Logs em nível `info` não têm conteúdo de mensagens.
 

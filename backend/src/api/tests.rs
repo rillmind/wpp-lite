@@ -34,6 +34,7 @@ struct FakeWa {
   qr: Option<String>,
   reading: Mutex<Vec<bool>>,
   reactions: Mutex<Vec<(String, String)>>,
+  watched: Mutex<Vec<String>>,
 }
 
 #[async_trait]
@@ -46,6 +47,11 @@ impl WhatsApp for FakeWa {
     } else {
       ConnState::Connected
     }
+  }
+
+  async fn watch_presence(&self, chat_jid: &str) -> Result<()> {
+    self.watched.lock().unwrap().push(chat_jid.into());
+    Ok(())
   }
 
   fn pairing_qr(&self) -> Option<String> {
@@ -1302,4 +1308,45 @@ async fn sends_voice_notes_as_audio() {
   )
   .await;
   assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn watch_asks_whatsapp_for_presence() {
+  let h = harness();
+  let (status, _) = call(&h, "POST", &format!("/api/chats/{A}/watch"), None).await;
+  assert_eq!(status, StatusCode::NO_CONTENT);
+  assert_eq!(*h.wa.watched.lock().unwrap(), [A]);
+}
+
+#[tokio::test]
+async fn typing_and_presence_reach_the_front_for_known_chats() {
+  let h = harness();
+  seed(&h, vec![incoming("1", 100, true)]).await;
+  let typing = crate::ingest::apply(
+    &h.store,
+    crate::wa::WaEvent::Typing {
+      chat_jid: A.into(),
+      sender_jid: A.into(),
+      typing: Some(crate::model::Typing::Audio),
+    },
+  )
+  .await
+  .unwrap();
+  let json = serde_json::to_value(&typing).unwrap();
+  assert_eq!(json[0]["type"], "chat.typing");
+  assert_eq!(json[0]["data"]["typing"], "audio");
+  let unknown = crate::ingest::apply(
+    &h.store,
+    crate::wa::WaEvent::Presence {
+      jid: "999@s.whatsapp.net".into(),
+      online: true,
+      last_seen: None,
+    },
+  )
+  .await
+  .unwrap();
+  assert!(
+    unknown.is_empty(),
+    "conversa que não existe aqui não vai ao front"
+  );
 }

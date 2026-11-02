@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError, getToken, setToken } from './api/client'
-import type { Chat, ConnState, Message, ServerEvent } from './api/types'
+import type { Chat, ConnState, Live, Message, ServerEvent } from './api/types'
 import { useEvents } from './api/useEvents'
 import { useReading } from './api/useReading'
 import { ChatList } from './components/ChatList'
@@ -51,6 +51,14 @@ const STATUS_JID = 'status@broadcast'
 const FOCUS_MAX_PAGES = 25
 /** Espera depois da última tecla para buscar. */
 const SEARCH_DELAY_MS = 250
+/** Sem novo aviso de "digitando" por este tempo, considera que parou. */
+const TYPING_TTL_MS = 8000
+
+/** Conversa individual aberta: pede o "online" e o "digitando…" dela (grupos chegam sozinhos). */
+function watchPresence(jid: string) {
+  if (jid.endsWith('@g.us') || isReadOnly(jid)) return
+  void api.watch(jid).catch(() => undefined)
+}
 
 function loadNoRead(): boolean {
   try {
@@ -119,6 +127,9 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState<{ q: string; result: SearchResult | null }>({ q: '', result: null })
   const searching = query.trim().length >= 2
+  // "online" e "digitando…" por conversa; some ao recarregar (não é guardado).
+  const [live, setLive] = useState<Record<string, Live>>({})
+  const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const autoRead = !noRead
   const selectedRef = useRef(selected)
   const chatsRef = useRef<Chat[]>([])
@@ -271,8 +282,23 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
         case 'chat.updated':
           setChats((cs) => [ev.data, ...cs.filter((c) => c.jid !== ev.data.jid)].sort(byActivity))
           break
+        case 'chat.typing': {
+          const { chat_jid, sender_name, typing } = ev.data
+          setTyping(chat_jid, typing ? { kind: typing, who: sender_name } : undefined)
+          break
+        }
+        case 'chat.presence': {
+          const { chat_jid, online, last_seen } = ev.data
+          setLive((l) => ({
+            ...l,
+            [chat_jid]: { ...l[chat_jid], online, lastSeen: last_seen ?? l[chat_jid]?.lastSeen },
+          }))
+          break
+        }
         case 'message.new': {
           const m = ev.data
+          // Mandou: parou de digitar.
+          if (!m.from_me) setTyping(m.chat_jid, undefined)
           maybeNotify(m)
           setConv((c) => {
             if (!c || c.jid !== m.chat_jid || c.messages.some((x) => x.id === m.id)) return c
@@ -324,9 +350,21 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     [autoRead, markRead, onHistoryLoaded],
   )
 
+  /** Liga ou desliga o "digitando…" de uma conversa; sem renovação, some sozinho. */
+  function setTyping(jid: string, typing: Live['typing']) {
+    const timers = typingTimers.current
+    clearTimeout(timers.get(jid))
+    timers.delete(jid)
+    if (typing) timers.set(jid, setTimeout(() => setTyping(jid, undefined), TYPING_TTL_MS))
+    setLive((l) => (l[jid]?.typing === typing ? l : { ...l, [jid]: { ...l[jid], typing } }))
+  }
+
   const onResync = useCallback(() => {
     loadChats()
-    if (selectedRef.current) void openChat(selectedRef.current)
+    if (selectedRef.current) {
+      void openChat(selectedRef.current)
+      watchPresence(selectedRef.current)
+    }
   }, [loadChats, openChat])
 
   const stream = useEvents(onEvent, onResync)
@@ -442,7 +480,10 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   }
 
   function select(jid: string, focusId?: string) {
-    if (jid !== selectedRef.current) setReplyTo(null)
+    if (jid !== selectedRef.current) {
+      setReplyTo(null)
+      watchPresence(jid)
+    }
     selectedRef.current = jid
     setSelected(jid)
     void openChat(jid, focusId)
@@ -730,6 +771,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             selected={selected}
             onSelect={select}
             onMenu={(chat, x, y) => setMenu({ chat, x, y })}
+            live={live}
           />
         )}
         {menu && (
@@ -757,6 +799,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           <Conversation
             chat={chats.find((c) => c.jid === conv.jid) ?? (draftChat?.jid === conv.jid ? draftChat : undefined)}
             conv={conv}
+            live={live[conv.jid]}
             connected={conn === 'connected' && stream === 'open'}
             onBack={closeChat}
             onLoadOlder={loadOlder}

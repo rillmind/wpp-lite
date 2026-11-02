@@ -1,5 +1,5 @@
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
-import type { Chat, Message, Reaction } from '../api/types'
+import type { Chat, Live, Message, Reaction } from '../api/types'
 import type { Recorded } from '../api/voice'
 import { Avatar } from './Avatar'
 import { Composer, type FileMeta } from './Composer'
@@ -12,6 +12,7 @@ import {
   formatPhone,
   formatTime,
   isReadOnly,
+  liveText,
   messageText,
   SENDER_COLORS,
   senderName,
@@ -36,6 +37,8 @@ export interface ConvState {
 interface Props {
   chat: Chat | undefined
   conv: ConvState
+  /** "online", "digitando…" (não guardado). */
+  live: Live | undefined
   connected: boolean
   onBack: () => void
   onLoadOlder: () => Promise<void>
@@ -109,6 +112,7 @@ const STATUS_ICON: Record<string, string> = { sent: '✓', delivered: '✓✓', 
 export function Conversation({
   chat,
   conv,
+  live,
   connected,
   onBack,
   onLoadOlder,
@@ -206,7 +210,11 @@ export function Conversation({
         {chat && <Avatar jid={chat.jid} name={chatName(chat)} size="sm" />}
         <div className="topbar__title">
           <h2 className="topbar__name">{chat ? chatName(chat) : 'Conversa'}</h2>
-          {chat?.name && chat.phone && <p className="topbar__sub">{formatPhone(chat.phone)}</p>}
+          {liveText(live) ? (
+            <p className={live?.typing ? 'topbar__sub topbar__sub--typing' : 'topbar__sub'}>{liveText(live)}</p>
+          ) : (
+            chat?.name && chat.phone && <p className="topbar__sub">{formatPhone(chat.phone)}</p>
+          )}
         </div>
         {unread > 0 && (
           <button type="button" className="btn" onClick={() => void onMarkRead()} disabled={!connected}>

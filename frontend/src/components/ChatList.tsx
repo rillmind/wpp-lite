@@ -1,7 +1,7 @@
-import type { Chat, MsgStatus } from '../api/types'
+import type { Chat, Live, MsgStatus } from '../api/types'
 import { getDraft } from '../api/drafts'
 import { Avatar } from './Avatar'
-import { chatName, formatListTime, formatPerson } from './format'
+import { chatName, formatListTime, formatPerson, liveText } from './format'
 
 const TICK_LABEL: Record<MsgStatus, string> = { sent: 'enviada', delivered: 'entregue', read: 'lida' }
 
@@ -11,9 +11,11 @@ interface Props {
   onSelect: (jid: string) => void
   /** Botão direito (ou toque longo) numa conversa. */
   onMenu: (chat: Chat, x: number, y: number) => void
+  /** "digitando…" por conversa. */
+  live: Record<string, Live>
 }
 
-export function ChatList({ chats, selected, onSelect, onMenu }: Props) {
+export function ChatList({ chats, selected, onSelect, onMenu, live }: Props) {
   if (chats.length === 0) {
     return <p className="empty">Nenhuma conversa ainda. Elas aparecem aqui assim que chegarem.</p>
   }
@@ -40,7 +42,9 @@ export function ChatList({ chats, selected, onSelect, onMenu }: Props) {
                 </span>
               </span>
               <span className="chat-item__bottom">
-                {c.jid !== selected && getDraft(c.jid) ? (
+                {live[c.jid]?.typing ? (
+                  <span className="chat-item__preview chat-item__typing">{liveText({ typing: live[c.jid].typing })}</span>
+                ) : c.jid !== selected && getDraft(c.jid) ? (
                   <span className="chat-item__preview">
                     <span className="chat-item__draft">Rascunho:</span> {getDraft(c.jid)}
                   </span>

@@ -32,6 +32,9 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   tem conta e abre a conversa com ele.
   Links (`https://…`, `www.…`) abrem numa aba nova do navegador.
 - Mostra as fotos de perfil, que carregam sozinhas.
+- No topo da conversa aberta mostra quando a pessoa está **digitando…** ou **gravando áudio…** (em
+  grupos, quem), **online** ou o "visto por último", quando ela deixa mostrar; o "digitando…" aparece
+  também na lista. Só o dos outros: o app nunca avisa que você está digitando.
 - Imagens, figurinhas, vídeos, áudios e documentos aparecem como um botão com o tamanho do
   arquivo (e a duração, em vídeo e áudio); só são baixados do WhatsApp quando você clica. Imagem
   abre na conversa (clique para ampliar); vídeo e áudio começam a tocar no player do navegador;
