@@ -51,6 +51,9 @@ jobs:
   image:
     needs: [backend, frontend]
     runs-on: ubuntu-latest
+    env:
+      # Secrets não podem ir direto no `if` de um passo.
+      HAS_README_TOKEN: ${{ secrets.DOCKERHUB_README_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -114,3 +117,15 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
+
+      # Página do repositório no Docker Hub (descrição curta + docs/DOCKERHUB.md). Exige um
+      # token com Read, Write, Delete; sem o secret o passo é pulado.
+      - name: Descrição no Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.HAS_README_TOKEN == 'true'
+        uses: peter-evans/dockerhub-description@v5
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_README_TOKEN }}
+          repository: ${{ vars.DOCKERHUB_USERNAME }}/wpp-lite
+          short-description: Cliente pessoal de WhatsApp que abre na hora, no seu servidor (Rust + web)
+          readme-filepath: docs/DOCKERHUB.md
