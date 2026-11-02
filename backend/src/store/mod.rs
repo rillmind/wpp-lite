@@ -14,6 +14,7 @@ use serde::Serialize;
 
 use crate::model::{
   ChatAction, ChatMeta, Contact, MediaInfo, MediaRef, Mention, Message, MessageKind, MsgStatus,
+  Reaction,
 };
 
 /// Item da lista de chats.
@@ -109,6 +110,74 @@ impl Db {
       };
     }
     Ok(())
+  }
+
+  /// Preenche as reações de cada mensagem, com o nome de quem reagiu.
+  pub fn attach_reactions(&self, msgs: &mut [Message]) -> Result<()> {
+    let mut stmt = self.conn.prepare_cached(
+      "SELECT sender_jid, emoji, ts_ms FROM reactions
+       WHERE chat_jid = ?1 AND msg_id = ?2 ORDER BY ts_ms, rowid",
+    )?;
+    for m in msgs.iter_mut() {
+      let rows = stmt.query_map(params![m.chat_jid, m.id], |r| {
+        Ok((
+          r.get::<_, String>(0)?,
+          r.get::<_, String>(1)?,
+          r.get::<_, i64>(2)?,
+        ))
+      })?;
+      let mut out = Vec::new();
+      for row in rows {
+        let (sender, emoji, ts_ms) = row?;
+        let (sender_jid, sender_name) = if sender.is_empty() {
+          (None, Some("Você".to_string()))
+        } else {
+          let name = self.person_name(&sender)?;
+          (Some(sender), name)
+        };
+        out.push(Reaction {
+          emoji,
+          sender_jid,
+          sender_name,
+          ts_ms,
+        });
+      }
+      m.reactions = out;
+    }
+    Ok(())
+  }
+
+  /// Põe, troca ou (com `emoji` vazio) tira a reação de uma pessoa (`None` = nós).
+  /// Reação mais velha que a guardada não vale. Devolve `true` se a mensagem existe.
+  pub fn set_reaction(
+    &self,
+    chat_jid: &str,
+    msg_id: &str,
+    sender_jid: Option<&str>,
+    emoji: &str,
+    ts_ms: i64,
+  ) -> Result<bool> {
+    let exists = self
+      .conn
+      .query_row(
+        "SELECT 1 FROM messages WHERE chat_jid = ?1 AND id = ?2",
+        params![chat_jid, msg_id],
+        |_| Ok(()),
+      )
+      .optional()?
+      .is_some();
+    if !exists {
+      return Ok(false);
+    }
+    put_reaction(
+      &self.conn,
+      chat_jid,
+      msg_id,
+      sender_jid.unwrap_or(""),
+      emoji,
+      ts_ms,
+    )?;
+    Ok(true)
   }
 
   /// Guarda os nossos jids (telefone e `@lid`), trocando os anteriores.
@@ -240,6 +309,13 @@ impl Db {
     tx.execute(
       &format!(
         "DELETE FROM media WHERE chat_jid = ?1 AND msg_id IN
+           (SELECT id FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep})"
+      ),
+      params![chat_jid, upto],
+    )?;
+    tx.execute(
+      &format!(
+        "DELETE FROM reactions WHERE chat_jid = ?1 AND msg_id IN
            (SELECT id FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep})"
       ),
       params![chat_jid, upto],
@@ -467,6 +543,7 @@ impl Db {
       .optional()?;
     if let Some(m) = &mut msg {
       self.name_mentions(std::slice::from_mut(m))?;
+      self.attach_reactions(std::slice::from_mut(m))?;
     }
     Ok(msg)
   }
@@ -504,6 +581,10 @@ impl Db {
       "DELETE FROM media WHERE chat_jid = ?1 AND msg_id = ?2",
       params![chat_jid, id],
     )?;
+    tx.execute(
+      "DELETE FROM reactions WHERE chat_jid = ?1 AND msg_id = ?2",
+      params![chat_jid, id],
+    )?;
     tx.commit()?;
     if n > 0 {
       self.refresh_preview(chat_jid)?;
@@ -528,6 +609,10 @@ impl Db {
     )?;
     tx.execute(
       "DELETE FROM media WHERE chat_jid = ?1 AND msg_id = ?2",
+      params![chat_jid, id],
+    )?;
+    tx.execute(
+      "DELETE FROM reactions WHERE chat_jid = ?1 AND msg_id = ?2",
       params![chat_jid, id],
     )?;
     if unread {
@@ -806,6 +891,7 @@ impl Db {
     let mut msgs = rows.collect::<rusqlite::Result<Vec<_>>>()?;
     msgs.reverse();
     self.name_mentions(&mut msgs)?;
+    self.attach_reactions(&mut msgs)?;
     Ok(msgs)
   }
 
@@ -936,7 +1022,55 @@ fn insert_row(conn: &Connection, m: &Message) -> Result<bool> {
       }),
     ],
   )?;
+  // Reações que vieram junto (histórico).
+  for r in &m.reactions {
+    put_reaction(
+      conn,
+      &m.chat_jid,
+      &m.id,
+      r.sender_jid.as_deref().unwrap_or(""),
+      &r.emoji,
+      r.ts_ms,
+    )?;
+  }
   Ok(n == 1)
+}
+
+/// Grava a reação se for mais nova que a guardada; `emoji` vazio a tira.
+fn put_reaction(
+  conn: &Connection,
+  chat_jid: &str,
+  msg_id: &str,
+  sender: &str,
+  emoji: &str,
+  ts_ms: i64,
+) -> Result<()> {
+  let newer = conn
+    .query_row(
+      "SELECT ts_ms FROM reactions WHERE chat_jid = ?1 AND msg_id = ?2 AND sender_jid = ?3",
+      params![chat_jid, msg_id, sender],
+      |r| r.get::<_, i64>(0),
+    )
+    .optional()?
+    .is_none_or(|old| ts_ms >= old);
+  if !newer {
+    return Ok(());
+  }
+  if emoji.is_empty() {
+    conn.execute(
+      "DELETE FROM reactions WHERE chat_jid = ?1 AND msg_id = ?2 AND sender_jid = ?3",
+      params![chat_jid, msg_id, sender],
+    )?;
+  } else {
+    conn.execute(
+      "INSERT INTO reactions (chat_jid, msg_id, sender_jid, emoji, ts_ms)
+       VALUES (?1, ?2, ?3, ?4, ?5)
+       ON CONFLICT(chat_jid, msg_id, sender_jid) DO UPDATE SET
+         emoji = excluded.emoji, ts_ms = excluded.ts_ms",
+      params![chat_jid, msg_id, sender, emoji, ts_ms],
+    )?;
+  }
+  Ok(())
 }
 
 // Nome de conversa individual: agenda (pelo telefone, senão pelo próprio jid), depois
@@ -1084,6 +1218,7 @@ fn message_from_row(r: &Row<'_>) -> rusqlite::Result<Message> {
       .split_whitespace()
       .map(Mention::new)
       .collect(),
+    reactions: vec![],
   })
 }
 

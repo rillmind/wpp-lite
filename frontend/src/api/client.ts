@@ -131,6 +131,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(days ? { action, days } : { action }),
     }),
+  /** Reage com `emoji`; vazio tira a reação. */
+  react: (jid: string, id: string, emoji: string) =>
+    request<Message | null>(`/api/chats/${enc(jid)}/messages/${enc(id)}/react`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
+    }),
   forward: (jid: string, id: string, to: string[]) =>
     request<Message[]>(`/api/chats/${enc(jid)}/messages/${enc(id)}/forward`, {
       method: 'POST',

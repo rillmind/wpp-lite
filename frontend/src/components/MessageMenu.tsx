@@ -27,11 +27,16 @@ interface Props {
   x: number
   y: number
   onPick: (pick: MessagePick) => void
+  /** Reagir com o emoji (o mesmo que já está tira a reação). */
+  onReact: (emoji: string) => void
   onClose: () => void
 }
 
+/** As reações rápidas do WhatsApp. */
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
+
 /** Menu do botão direito numa mensagem da conversa. */
-export function MessageMenu({ message: m, chatJid, x, y, onPick, onClose }: Props) {
+export function MessageMenu({ message: m, chatJid, x, y, onPick, onReact, onClose }: Props) {
   // O menu é montado a cada abertura: a hora de agora vale para ela inteira.
   const [now] = useState(() => Date.now() / 1000)
   const item = (label: string, pick: MessagePick, danger = false): MenuItem => ({
@@ -60,5 +65,25 @@ export function MessageMenu({ message: m, chatJid, x, y, onPick, onClose }: Prop
     items.push(item('Excluir para todos', 'delete_all', true))
   }
   if (!m.from_me && !readOnly) items.push(item('Denunciar', 'report', true))
-  return <Menu x={x} y={y} items={items} onClose={onClose} />
+  const mine = m.reactions?.find((r) => r.sender_jid === null)?.emoji
+  const header = readOnly ? undefined : (
+    <div className="menu__reactions" role="group" aria-label="Reagir">
+      {QUICK_REACTIONS.map((e) => (
+        <button
+          key={e}
+          type="button"
+          className="menu__reaction"
+          aria-pressed={mine === e}
+          title={mine === e ? 'Tirar reação' : `Reagir com ${e}`}
+          onClick={() => {
+            onClose()
+            onReact(e)
+          }}
+        >
+          {e}
+        </button>
+      ))}
+    </div>
+  )
+  return <Menu x={x} y={y} items={items} onClose={onClose} header={header} />
 }

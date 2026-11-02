@@ -40,6 +40,15 @@ pub enum WaEvent {
     id: String,
     starred: bool,
   },
+  /// Reação posta (ou trocada) numa mensagem; `emoji` vazio tira a reação.
+  Reaction {
+    chat_jid: String,
+    msg_id: String,
+    /// Quem reagiu; `None` = nós (de outro aparelho).
+    sender_jid: Option<String>,
+    emoji: String,
+    ts_ms: i64,
+  },
   /// Mensagem fixada (até `until_ms`) ou desafixada (`None`).
   Pinned {
     chat_jid: String,
@@ -144,6 +153,9 @@ pub trait WhatsApp: Send + Sync {
 
   /// Favorita, fixa, apaga ou denuncia uma mensagem (também no celular).
   async fn message_action(&self, msg: &Message, action: MessageAction) -> Result<()>;
+
+  /// Reage a uma mensagem; `emoji` vazio tira a nossa reação.
+  async fn react(&self, msg: &Message, emoji: &str) -> Result<()>;
 
   /// Encaminha uma mensagem (texto ou mídia, sem subir o arquivo de novo).
   async fn forward(&self, to_jid: &str, msg: &Message, media: Option<&MediaRef>) -> Result<Sent>;
