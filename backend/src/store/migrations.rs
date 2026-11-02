@@ -94,6 +94,9 @@ pub(super) const MIGRATIONS: &[&str] = &[
   // (telefone e `@lid`), para mostrar "@Você".
   "ALTER TABLE messages ADD COLUMN mentions TEXT;
    CREATE TABLE me (jid TEXT PRIMARY KEY);",
+  // 11: arquivar pelo app fica só no app. `archived` passa a ser o estado do celular;
+  // `archived_app` a escolha feita aqui (NULL = segue o celular), que vale por cima.
+  "ALTER TABLE chats ADD COLUMN archived_app INTEGER;",
 ];
 
 pub fn run(conn: &mut Connection) -> Result<()> {

@@ -40,7 +40,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `GET /api/chats/{jid}/messages/{id}/media` | baixa a imagem, figurinha, vídeo, áudio ou documento do WhatsApp na hora (`Cache-Control: no-store`; documento sempre como anexo; até 32 MB, vídeo até 100 MB) |
 | `GET /api/chats/{jid}/avatar` | foto de perfil, buscada na hora; `204` se não houver |
 | `POST /api/chats/{jid}/read` | recibos de leitura + marca lido no celular |
-| `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread", "hours"? }` (`hours` só em `mute`; sem ele, para sempre) |
+| `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread", "hours"? }` (`hours` só em `mute`; sem ele, para sempre). `archive`/`unarchive` ficam só no app |
 | `POST /api/chats/{jid}/send` | `{ "text": "...", "reply_to"? }`, uma mensagem por requisição; `reply_to` cita outra mensagem da conversa |
 | `POST /api/chats/{jid}/messages/{id}/action` | `{ "action": "star" \| "unstar" \| "pin" \| "unpin" \| "delete_me" \| "delete_all" \| "report", "days"? }` (`days` 1, 7 ou 30 em `pin`) |
 | `POST /api/chats/{jid}/messages/{id}/forward` | `{ "to": ["jid", …] }`, até 5 conversas |

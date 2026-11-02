@@ -766,9 +766,10 @@ async fn chat_actions_go_to_whatsapp_then_to_the_list() {
   assert_eq!(status, StatusCode::OK);
   assert_eq!(chat["pinned"], true);
 
+  // Arquivar fica só no app: não vai ao WhatsApp nem mexe na fixação.
   let (_, chat) = act(&h, "archive", None).await;
   assert_eq!(chat["archived"], true);
-  assert_eq!(chat["pinned"], false, "arquivar desafixa");
+  assert_eq!(chat["pinned"], true);
 
   let (_, chat) = act(&h, "mute", Some(8)).await;
   assert_eq!(chat["muted"], true);
@@ -788,9 +789,10 @@ async fn chat_actions_go_to_whatsapp_then_to_the_list() {
     .iter()
     .map(|(_, a)| *a)
     .collect();
-  assert_eq!(sent.len(), 6);
-  assert!(matches!(sent[2], ChatAction::Mute(Some(_))));
-  assert_eq!(sent[4], ChatAction::Mute(None));
+  assert_eq!(sent.len(), 5);
+  assert!(!sent.iter().any(|a| matches!(a, ChatAction::Archive(_))));
+  assert!(matches!(sent[1], ChatAction::Mute(Some(_))));
+  assert_eq!(sent[3], ChatAction::Mute(None));
 
   let (status, _) = act(&h, "apagar", None).await;
   assert_eq!(status, StatusCode::BAD_REQUEST);

@@ -80,8 +80,13 @@ pub enum WaEvent {
     chat_jid: String,
     read: bool,
   },
-  /// Nome de grupo, arquivamento ou fixação alterados.
+  /// Nome de grupo, fixação ou silêncio alterados.
   ChatMeta(ChatMeta),
+  /// Conversa arquivada/desarquivada no celular.
+  PhoneArchive {
+    chat_jid: String,
+    archived: bool,
+  },
   /// Nome da agenda ou apelido de uma pessoa.
   Contact(Contact),
   /// O `@lid` corresponde a este jid de telefone (`@s.whatsapp.net`).

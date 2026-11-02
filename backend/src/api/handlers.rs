@@ -325,12 +325,15 @@ pub async fn chat_action(
   if st.store.run(move |db| db.get_chat(&j)).await?.is_none() {
     return Err(ApiError::NotFound);
   }
-  ensure_connected(&st)?;
-  // Primeiro no WhatsApp: se falhar, o banco local continua igual ao celular.
-  st.wa
-    .chat_action(&jid, action)
-    .await
-    .map_err(ApiError::Upstream)?;
+  // Arquivar fica só no app; o resto vai primeiro ao WhatsApp (se falhar, o banco local
+  // continua igual ao celular).
+  if !matches!(action, ChatAction::Archive(_)) {
+    ensure_connected(&st)?;
+    st.wa
+      .chat_action(&jid, action)
+      .await
+      .map_err(ApiError::Upstream)?;
+  }
   let chat = st
     .store
     .run(move |db| {

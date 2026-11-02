@@ -579,3 +579,31 @@ fn mention_everyone_counts_as_mentioning_me() {
   assert!(msgs[0].mentions[0].me);
   assert_eq!(msgs[0].mentions[0].name.as_deref(), Some("todos"));
 }
+
+#[test]
+fn archive_in_app_stays_and_phone_archive_comes_in() {
+  let db = db();
+  db.insert_message(&msg(LID, "1", 10, false, true)).unwrap();
+  db.set_lid_map(LID, PN).unwrap();
+  let archived = |db: &Db| db.get_chat(LID).unwrap().unwrap().archived;
+
+  // O celular cita a conversa pelo telefone: acha a do app (`@lid`).
+  assert_eq!(db.existing_chat(PN).unwrap().as_deref(), Some(LID));
+  assert_eq!(db.existing_chat("000@s.whatsapp.net").unwrap(), None);
+
+  // Arquivada no celular: aparece arquivada aqui.
+  db.set_phone_archived(LID, true).unwrap();
+  assert!(archived(&db));
+  // Desarquivada no app: fica desarquivada aqui, mesmo arquivada lá.
+  db.apply_action(LID, ChatAction::Archive(false)).unwrap();
+  assert!(!archived(&db));
+  // Arquivada de novo no celular: vale por cima da escolha do app.
+  db.set_phone_archived(LID, true).unwrap();
+  assert!(archived(&db));
+
+  // Arquivada no app: desarquivar no celular (ou mensagem nova lá) não desarquiva aqui.
+  db.set_phone_archived(LID, false).unwrap();
+  db.apply_action(LID, ChatAction::Archive(true)).unwrap();
+  db.set_phone_archived(LID, false).unwrap();
+  assert!(archived(&db));
+}
