@@ -358,6 +358,36 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [selected, replying, closeChat])
 
+  // Atalhos: Ctrl+K (ou ⌘K) vai para a busca; Alt+↑/↓ abre a conversa de cima/de baixo
+  // na lista da seção atual.
+  const selectStep = useRef<(step: number) => void>(() => undefined)
+  useEffect(() => {
+    selectStep.current = (step) => {
+      if (visible.length === 0) return
+      const at = visible.findIndex((c) => c.jid === selectedRef.current)
+      const next = at < 0 ? (step > 0 ? 0 : visible.length - 1) : at + step
+      const chat = visible[Math.max(0, Math.min(visible.length - 1, next))]
+      if (chat.jid !== selectedRef.current) select(chat.jid)
+    }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing) return
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+        const search = document.querySelector<HTMLInputElement>('.search__input')
+        if (!search) return
+        e.preventDefault()
+        search.focus()
+        search.select()
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault()
+        selectStep.current(e.key === 'ArrowUp' ? -1 : 1)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const closeMenu = useCallback(() => setMenu(null), [])
 
   // Aviso curto quando uma ação do menu falha (ex.: WhatsApp desconectado).
