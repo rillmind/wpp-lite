@@ -30,6 +30,12 @@ pub enum WaEvent {
     chat_jid: String,
     id: String,
   },
+  /// Mensagem editada por quem mandou: o texto (ou a legenda) novo.
+  Edited {
+    chat_jid: String,
+    id: String,
+    body: String,
+  },
   /// Mensagem apagada para nós em outro aparelho.
   DeletedForMe {
     chat_jid: String,
@@ -169,6 +175,9 @@ pub trait WhatsApp: Send + Sync {
 
   /// Envia uma mensagem de texto, opcionalmente respondendo (citando) outra.
   async fn send_text(&self, chat_jid: &str, text: &str, quote: Option<&Quote>) -> Result<Sent>;
+
+  /// Troca o texto de uma mensagem de texto nossa (para todos).
+  async fn edit_text(&self, msg: &Message, text: &str) -> Result<()>;
 
   /// Favorita, fixa, apaga ou denuncia uma mensagem (também no celular).
   async fn message_action(&self, msg: &Message, action: MessageAction) -> Result<()>;

@@ -119,6 +119,9 @@ pub struct Message {
   /// Imagem ou figurinha que pode ser baixada (`GET .../media`).
   #[serde(skip_serializing_if = "Option::is_none")]
   pub media: Option<MediaInfo>,
+  /// Editada por quem mandou (o texto já é o novo).
+  #[serde(default)]
+  pub edited: bool,
   /// Favoritada (estrela).
   #[serde(default)]
   pub starred: bool,

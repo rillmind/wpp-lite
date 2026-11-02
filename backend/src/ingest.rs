@@ -373,6 +373,20 @@ pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
         })
         .await?
     }
+    WaEvent::Edited { chat_jid, id, body } => {
+      store
+        .run(move |db| {
+          // A edição pode vir pelo outro jid da conversa (@lid ou telefone).
+          let Some(chat) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
+          if !db.set_edited(&chat, &id, &body)? {
+            return Ok(vec![]);
+          }
+          message_changed(db, &chat, &id)
+        })
+        .await?
+    }
     WaEvent::Starred {
       chat_jid,
       id,

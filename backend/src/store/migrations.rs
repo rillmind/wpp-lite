@@ -106,6 +106,8 @@ pub(super) const MIGRATIONS: &[&str] = &[
      ts_ms      INTEGER NOT NULL,
      PRIMARY KEY (chat_jid, msg_id, sender_jid)
    );",
+  // 13: mensagem editada por quem mandou (o corpo guardado já é o texto novo).
+  "ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0;",
 ];
 
 pub fn run(conn: &mut Connection) -> Result<()> {

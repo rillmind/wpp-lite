@@ -558,6 +558,20 @@ impl Db {
     )
   }
 
+  /// Texto novo de uma mensagem editada por quem mandou (texto ou legenda). Devolve `true`
+  /// se a mensagem existe e ainda não foi apagada.
+  pub fn set_edited(&self, chat_jid: &str, id: &str, body: &str) -> Result<bool> {
+    let n = self.conn.execute(
+      "UPDATE messages SET body = ?3, edited = 1
+       WHERE chat_jid = ?1 AND id = ?2 AND kind <> 'revoked'",
+      params![chat_jid, id, body],
+    )?;
+    if n > 0 {
+      self.refresh_preview(chat_jid)?;
+    }
+    Ok(n > 0)
+  }
+
   /// Fixada até `until_ms`; `None` desafixa.
   pub fn set_pinned_until(&self, chat_jid: &str, id: &str, until_ms: Option<i64>) -> Result<bool> {
     Ok(
@@ -1114,7 +1128,7 @@ fn msg_select() -> String {
     "SELECT m.id, m.chat_jid, m.sender_jid, m.from_me, m.ts, m.kind, m.body, m.quoted_id,
        m.status, m.is_read, {},
        md.msg_id IS NOT NULL, md.mimetype, md.width, md.height, md.file_length, md.seconds, md.file_name,
-       m.starred, m.pinned_until, m.mentions
+       m.starred, m.pinned_until, m.mentions, m.edited
      FROM messages m
      LEFT JOIN media md ON md.chat_jid = m.chat_jid AND md.msg_id = m.id
      LEFT JOIN lid_map sm ON sm.lid = m.sender_jid
@@ -1210,6 +1224,7 @@ fn message_from_row(r: &Row<'_>) -> rusqlite::Result<Message> {
     } else {
       None
     },
+    edited: r.get(22)?,
     starred: r.get(19)?,
     pinned: matches!(r.get::<_, Option<i64>>(20)?, Some(u) if u > now_ms()),
     mentions: r

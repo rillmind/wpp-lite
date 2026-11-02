@@ -217,6 +217,20 @@ impl WhatsApp for RustWa {
     })
   }
 
+  async fn edit_text(&self, msg: &Message, text: &str) -> Result<()> {
+    let chat = parse_jid(&msg.chat_jid)?;
+    let content = wa::Message {
+      conversation: Some(text.to_string()),
+      ..Default::default()
+    };
+    self
+      .client
+      .edit_message(chat, msg.id.clone(), content)
+      .await
+      .map_err(|e| anyhow!("{e}"))?;
+    Ok(())
+  }
+
   async fn message_action(&self, msg: &Message, action: MessageAction) -> Result<()> {
     let chat = parse_jid(&msg.chat_jid)?;
     // Em grupo, quem mandou identifica a mensagem; nas nossas e em conversa
@@ -953,6 +967,7 @@ impl Translator {
               status: src.is_from_me.then_some(MsgStatus::Sent),
               is_read: src.is_from_me,
               media: None,
+              edited: false,
               starred: false,
               pinned: false,
               mentions: vec![],
@@ -1292,7 +1307,7 @@ async fn chat_title(client: &Client, jid: &Jid) -> Result<Option<String>> {
 /// Fixação padrão quando a mensagem não diz a duração (a do WhatsApp).
 const DEFAULT_PIN_SECS: i64 = 7 * 24 * 3600;
 
-/// Apagar para todos, reagir e fixar/desafixar mensagem.
+/// Apagar para todos, reagir, editar e fixar/desafixar mensagem.
 fn control_event(message: &wa::Message, info: &MessageInfo) -> Option<WaEvent> {
   let m = message.get_base_message();
   let chat_jid = info.source.chat.to_non_ad_string();
@@ -1301,6 +1316,15 @@ fn control_event(message: &wa::Message, info: &MessageInfo) -> Option<WaEvent> {
     if p.r#type == Some(Type::REVOKE) {
       let id = p.key.as_option()?.id.clone()?;
       return Some(WaEvent::Revoked { chat_jid, id });
+    }
+    if p.r#type == Some(Type::MESSAGE_EDIT) {
+      let id = p.key.as_option()?.id.clone()?;
+      let edited = p.edited_message.as_option()?;
+      let body = edited
+        .text_content()
+        .or_else(|| edited.get_caption())?
+        .to_string();
+      return Some(WaEvent::Edited { chat_jid, id, body });
     }
     return None;
   }
@@ -1363,6 +1387,7 @@ fn convert_live(message: &wa::Message, info: &MessageInfo) -> Option<(Message, O
     // Mensagens nossas (enviadas de outro aparelho) já nascem lidas.
     is_read: src.is_from_me,
     media: media.as_ref().map(MediaRef::info),
+    edited: false,
     starred: false,
     pinned: false,
     mentions,
@@ -1596,6 +1621,7 @@ fn convert_history_msg(
     status,
     is_read: true,
     media: media.as_ref().map(MediaRef::info),
+    edited: false,
     starred: false,
     pinned: false,
     mentions,

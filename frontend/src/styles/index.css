@@ -1220,6 +1220,11 @@ code {
   background: var(--ctp-red);
 }
 
+/* "editada" ao lado da hora */
+.bubble__edited {
+  font-style: italic;
+}
+
 /* "digitando…" no topo da conversa e na lista */
 .topbar__sub--typing,
 .chat-item__typing {

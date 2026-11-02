@@ -67,6 +67,7 @@ pub fn router(
       "/api/chats/{jid}/messages/{id}/action",
       post(handlers::message_action),
     )
+    .route("/api/chats/{jid}/messages/{id}/edit", post(handlers::edit))
     .route(
       "/api/chats/{jid}/messages/{id}/react",
       post(handlers::react),
