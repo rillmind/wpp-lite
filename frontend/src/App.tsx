@@ -603,6 +603,22 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     for (const c of chats) if (c.unread_count > 0) n[chatSection(c)] += 1
     return n
   }, [chats])
+  // Contador no ícone do app instalado e no título da aba: conversas com não lidas, sem as
+  // silenciadas e arquivadas (que também não notificam), status e canais.
+  const badge = useMemo(
+    () => chats.filter((c) => c.unread_count > 0 && !c.muted && chatSection(c) === 'chats').length,
+    [chats],
+  )
+  useEffect(() => {
+    document.title = badge > 0 ? `(${badge}) WhatsApp Lite` : 'WhatsApp Lite'
+    const nav = navigator as Navigator & {
+      setAppBadge?: (n?: number) => Promise<void>
+      clearAppBadge?: () => Promise<void>
+    }
+    const done = badge > 0 ? nav.setAppBadge?.(badge) : nav.clearAppBadge?.()
+    done?.catch(() => undefined)
+  }, [badge])
+
   const connClass = stream !== 'open' ? 'warn' : conn === 'connected' ? 'ok' : conn === 'disconnected' || conn === 'connecting' ? 'warn' : 'err'
   const connText = stream !== 'open' ? 'Servidor desconectado…' : CONN_LABEL[conn]
 

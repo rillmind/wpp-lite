@@ -51,6 +51,9 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
 - Instala no celular como app (PWA): pelo endereço HTTPS, no Chrome do Android **⋮ → Instalar
   app** (ou "Adicionar à tela inicial"), no iPhone **Compartilhar → Adicionar à Tela de Início**.
   Abre em tela cheia, sem barra de endereço, com ícone próprio.
+- O número de conversas não lidas aparece no ícone do app instalado (onde o sistema mostra) e no
+  título da aba, como "(3) WhatsApp Lite"; silenciadas e arquivadas não contam. Atualiza enquanto o
+  app está aberto, mesmo em segundo plano.
 - Envia imagens, vídeos e documentos: pelo clipe ao lado da caixa de mensagem ou colando
   (Ctrl+V) uma imagem ou arquivo copiado, como um print. Os arquivos aparecem antes de enviar (dá
   para tirar), o texto escrito vira a legenda do primeiro, e vão ao clicar em "Enviar". JPEG e PNG
