@@ -1126,3 +1126,9 @@ code {
   color: var(--ctp-crust);
   background: var(--ctp-red);
 }
+
+/* "Rascunho:" na lista, para a conversa com texto não enviado */
+.chat-item__draft {
+  color: var(--ok);
+  font-weight: 600;
+}

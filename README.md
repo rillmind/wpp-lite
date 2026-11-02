@@ -52,6 +52,9 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   (Ctrl+V) uma imagem ou arquivo copiado, como um print. Os arquivos aparecem antes de enviar (dá
   para tirar), o texto escrito vira a legenda do primeiro, e vão ao clicar em "Enviar". JPEG e PNG
   vão como foto, MP4 como vídeo e o resto (inclusive GIF) como documento, até 100 MB.
+- Rascunho por conversa: o que você escreveu e não mandou continua lá quando volta para a conversa
+  (e aparece na lista como "Rascunho: …"). Fica só nesta aba do navegador: sobrevive a recarregar a
+  página e some ao fechar a aba; não vai para o servidor.
 - Envia mensagens de texto. No computador, Enter envia e Shift+Enter quebra linha; no celular,
   Enter quebra linha, só o botão "Enviar" envia, e o teclado continua aberto depois do envio. Cada conversa tem o seu
   rascunho: trocar de conversa não leva o texto junto.
