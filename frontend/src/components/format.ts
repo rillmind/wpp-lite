@@ -1,4 +1,4 @@
-import type { Chat, Mention, Message } from '../api/types'
+import type { Chat, Live, Mention, Message } from '../api/types'
 
 const PLACEHOLDER: Record<string, string> = {
   image: '[imagem]',
@@ -265,4 +265,75 @@ export function shuffledPalette(): number[] {
     ;[order[i], order[j]] = [order[j], order[i]]
   }
   return order
+}
+
+/** Um caractere minúsculo e sem acento (o mesmo `fold` do backend, caractere a caractere). */
+function foldChar(c: string): string {
+  const base = c.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return base.length === 1 ? base : c.toLowerCase()
+}
+
+/** Texto minúsculo e sem acento, para comparar na busca. */
+export function foldText(text: string): string {
+  return Array.from(text, foldChar).join('')
+}
+
+/** Uma parte do texto, marcada quando é o trecho buscado. */
+export type HitPart = { text: string; hit?: boolean }
+
+/** Divide `text` nos trechos que batem com `query` (sem ligar para maiúsculas e acentos). */
+export function highlight(text: string, query: string): HitPart[] {
+  const needle = foldText(query.trim())
+  if (!needle) return [{ text }]
+  const chars = Array.from(text)
+  const folded = chars.map(foldChar)
+  const parts: HitPart[] = []
+  let plain = ''
+  let i = 0
+  while (i < chars.length) {
+    if (folded.slice(i, i + needle.length).join('') === needle) {
+      if (plain) parts.push({ text: plain })
+      plain = ''
+      const len = Array.from(needle).length
+      parts.push({ text: chars.slice(i, i + len).join(''), hit: true })
+      i += len
+    } else {
+      plain += chars[i]
+      i += 1
+    }
+  }
+  if (plain) parts.push({ text: plain })
+  return parts
+}
+
+/** Recorte do texto começando um pouco antes do primeiro trecho buscado. */
+export function snippet(text: string, query: string, before = 30): string {
+  const flat = text.replace(/\s+/g, ' ')
+  const at = foldText(flat).indexOf(foldText(query.trim()))
+  if (at <= before) return flat
+  const start = flat.lastIndexOf(' ', at - before)
+  return `…${flat.slice(start > 0 ? start + 1 : at - before)}`
+}
+
+/** "digitando…", "Ana está gravando áudio…", "online", "visto por último hoje às 14:03". */
+export function liveText(live: Live | undefined): string | null {
+  if (!live) return null
+  if (live.typing) {
+    const what = live.typing.kind === 'audio' ? 'gravando áudio…' : 'digitando…'
+    return live.typing.who ? `${formatPerson(live.typing.who)} está ${what}` : what
+  }
+  if (live.online) return 'online'
+  if (live.lastSeen) {
+    const d = new Date(live.lastSeen * 1000)
+    const today = new Date()
+    const yesterday = new Date(today.getTime() - 86_400_000)
+    const when =
+      d.toDateString() === today.toDateString()
+        ? 'hoje'
+        : d.toDateString() === yesterday.toDateString()
+          ? 'ontem'
+          : `em ${day.format(d)}`
+    return `visto por último ${when} às ${time.format(d)}`
+  }
+  return null
 }

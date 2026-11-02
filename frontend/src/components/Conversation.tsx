@@ -1,5 +1,6 @@
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
-import type { Chat, Message } from '../api/types'
+import type { Chat, Live, Message, Reaction } from '../api/types'
+import type { Recorded } from '../api/voice'
 import { Avatar } from './Avatar'
 import { Composer, type FileMeta } from './Composer'
 import { MediaView } from './MediaView'
@@ -7,9 +8,11 @@ import { MessageMenu, type MessagePick } from './MessageMenu'
 import { RichText } from './RichText'
 import {
   chatName,
+  formatPerson,
   formatPhone,
   formatTime,
   isReadOnly,
+  liveText,
   messageText,
   SENDER_COLORS,
   senderName,
@@ -26,18 +29,23 @@ export interface ConvState {
   pending: boolean
   /** Ordem das cores de nome nesta abertura da conversa (sorteada ao abrir). */
   palette: number[]
+  /** Aberta pela busca: rola até esta mensagem em vez da primeira não lida. */
+  focusId?: string
 }
 
 
 interface Props {
   chat: Chat | undefined
   conv: ConvState
+  /** "online", "digitando…" (não guardado). */
+  live: Live | undefined
   connected: boolean
   onBack: () => void
   onLoadOlder: () => Promise<void>
   onMarkRead: () => Promise<void>
   onSend: (text: string) => Promise<void>
   onSendFile: (file: File, caption: string | null, meta: FileMeta) => Promise<void>
+  onSendVoice: (rec: Recorded) => Promise<void>
   /** Mensagem sendo respondida (aparece acima da caixa). */
   replyTo: Message | null
   onCancelReply: () => void
@@ -45,6 +53,8 @@ interface Props {
   editing: Message | null
   onCancelEdit: () => void
   onMessagePick: (m: Message, pick: MessagePick) => void
+  /** Reagir (o mesmo emoji que já é seu tira a reação). */
+  onReact: (m: Message, emoji: string) => void
   /** Abre a conversa com uma pessoa (remetente ou marcada). */
   onOpenPerson: (jid: string) => void
   /** Abre a conversa com um telefone escrito na mensagem (só dígitos, com DDI). */
@@ -55,10 +65,10 @@ interface Props {
 const INTERACTIVE = 'button, a, audio, video, input, textarea'
 
 /** Rola até a mensagem e pisca para achar. */
-function jumpTo(id: string) {
+function jumpTo(id: string, behavior: ScrollBehavior = 'smooth') {
   const el = document.getElementById(`msg-${id}`)
   if (!el) return
-  el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  el.scrollIntoView({ block: 'center', behavior })
   el.classList.add('bubble--flash')
   setTimeout(() => el.classList.remove('bubble--flash'), 1200)
 }
@@ -70,22 +80,55 @@ function startsRun(messages: Message[], i: number, firstUnreadId: string | null)
   return !prev || prev.from_me || prev.sender_jid !== m.sender_jid || m.id === firstUnreadId
 }
 
+/** Os emojis de reação agrupados, com quantas pessoas e quem (no título). */
+function Reactions({ reactions, onToggle }: { reactions: Reaction[]; onToggle?: (emoji: string) => void }) {
+  const groups = new Map<string, { names: string[]; mine: boolean }>()
+  for (const r of reactions) {
+    const g = groups.get(r.emoji) ?? { names: [], mine: false }
+    g.names.push(r.sender_jid === null ? 'Você' : r.sender_name ? formatPerson(r.sender_name) : 'Alguém')
+    g.mine ||= r.sender_jid === null
+    groups.set(r.emoji, g)
+  }
+  return (
+    <span className="reactions">
+      {[...groups].map(([emoji, g]) => (
+        <button
+          key={emoji}
+          type="button"
+          className="reaction"
+          aria-pressed={g.mine}
+          title={g.names.join(', ')}
+          disabled={!onToggle}
+          onClick={() => onToggle?.(emoji)}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          {emoji}
+          {g.names.length > 1 && <span className="reaction__count">{g.names.length}</span>}
+        </button>
+      ))}
+    </span>
+  )
+}
+
 const STATUS_ICON: Record<string, string> = { sent: '✓', delivered: '✓✓', read: '✓✓' }
 
 export function Conversation({
   chat,
   conv,
+  live,
   connected,
   onBack,
   onLoadOlder,
   onMarkRead,
   onSend,
   onSendFile,
+  onSendVoice,
   replyTo,
   onCancelReply,
   editing,
   onCancelEdit,
   onMessagePick,
+  onReact,
   onOpenPerson,
   onOpenPhone,
 }: Props) {
@@ -123,11 +166,19 @@ export function Conversation({
   // se o usuário já estava lá, e preserva a posição ao carregar anteriores.
   useLayoutEffect(() => {
     const el = scroller.current
-    if (!el || conv.loading) return
+    if (!el) return
+    // Abrindo de novo (ex.: outra mensagem da busca na mesma conversa): posiciona de novo.
+    if (conv.loading) {
+      positioned.current = null
+      return
+    }
     if (positioned.current !== conv.jid) {
       positioned.current = conv.jid
       const sep = el.querySelector<HTMLElement>('.unread-sep')
-      if (sep) el.scrollTop = sep.offsetTop - el.clientHeight / 3
+      if (conv.focusId && document.getElementById(`msg-${conv.focusId}`)) {
+        stick.current = false
+        jumpTo(conv.focusId, 'auto')
+      } else if (sep) el.scrollTop = sep.offsetTop - el.clientHeight / 3
       else el.scrollTop = el.scrollHeight
       return
     }
@@ -164,7 +215,11 @@ export function Conversation({
         {chat && <Avatar jid={chat.jid} name={chatName(chat)} size="sm" />}
         <div className="topbar__title">
           <h2 className="topbar__name">{chat ? chatName(chat) : 'Conversa'}</h2>
-          {chat?.name && chat.phone && <p className="topbar__sub">{formatPhone(chat.phone)}</p>}
+          {liveText(live) ? (
+            <p className={live?.typing ? 'topbar__sub topbar__sub--typing' : 'topbar__sub'}>{liveText(live)}</p>
+          ) : (
+            chat?.name && chat.phone && <p className="topbar__sub">{formatPhone(chat.phone)}</p>
+          )}
         </div>
         {unread > 0 && (
           <button type="button" className="btn" onClick={() => void onMarkRead()} disabled={!connected}>
@@ -294,6 +349,9 @@ export function Conversation({
                     {m.kind === 'text' ? <RichText text={m.body ?? ''} mentions={m.mentions} onMention={onOpenPerson} onPhone={onOpenPhone} /> : messageText(m)}
                   </span>
                 )}
+                {m.reactions && m.reactions.length > 0 && (
+                  <Reactions reactions={m.reactions} onToggle={readOnly ? undefined : (e) => onReact(m, e)} />
+                )}
                 <span className="bubble__meta">
                   {m.starred && <span aria-label="Favoritada">★</span>}
                   {m.edited && <span className="bubble__edited">editada</span>}
@@ -315,9 +373,11 @@ export function Conversation({
       ) : (
         <Composer
           key={conv.jid}
+          jid={conv.jid}
           disabled={!connected}
           onSend={onSend}
           onSendFile={onSendFile}
+          onSendVoice={onSendVoice}
           reply={replyTo ? { who: who(replyTo), text: messageText(replyTo) } : null}
           onCancelReply={onCancelReply}
           editing={editing ? { id: editing.id, text: editing.body ?? '' } : null}
@@ -332,6 +392,7 @@ export function Conversation({
           y={menu.y}
           onClose={() => setMenu(null)}
           onPick={(pick) => onMessagePick(menu.m, pick)}
+          onReact={(emoji) => onReact(menu.m, emoji)}
         />
       )}
     </section>

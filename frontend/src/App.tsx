@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { api, ApiError, getToken, setToken } from './api/client'
-import type { Chat, ConnState, Message, ServerEvent } from './api/types'
+import type { Chat, ConnState, Live, Message, ServerEvent } from './api/types'
 import { useEvents } from './api/useEvents'
 import { useReading } from './api/useReading'
 import { ChatList } from './components/ChatList'
@@ -27,6 +27,8 @@ import {
   type Section,
 } from './components/format'
 import { Rail } from './components/Rail'
+import { SearchResults, type SearchResult } from './components/SearchResults'
+import type { Recorded } from './api/voice'
 import { notifyState, showNotification, toggleNotify, type NotifyState } from './api/notify'
 
 // Marcada: abrir a conversa não envia recibo de leitura. Desmarcada (padrão): envia.
@@ -45,6 +47,18 @@ function withOlder(c: ConvState, older: Message[]): ConvState {
   return { ...c, messages: [...fresh, ...c.messages].sort((a, b) => a.ts - b.ts) }
 }
 const STATUS_JID = 'status@broadcast'
+/** Aberta pela busca: até quantas páginas (de 200) volta para achar a mensagem. */
+const FOCUS_MAX_PAGES = 25
+/** Espera depois da última tecla para buscar. */
+const SEARCH_DELAY_MS = 250
+/** Sem novo aviso de "digitando" por este tempo, considera que parou. */
+const TYPING_TTL_MS = 8000
+
+/** Conversa individual aberta: pede o "online" e o "digitando…" dela (grupos chegam sozinhos). */
+function watchPresence(jid: string) {
+  if (jid.endsWith('@g.us') || isReadOnly(jid)) return
+  void api.watch(jid).catch(() => undefined)
+}
 
 function loadNoRead(): boolean {
   try {
@@ -111,6 +125,12 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [forwarding, setForwarding] = useState<Message | null>(null)
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   const [noRead, setNoRead] = useState(loadNoRead)
+  const [query, setQuery] = useState('')
+  const [search, setSearch] = useState<{ q: string; result: SearchResult | null }>({ q: '', result: null })
+  const searching = query.trim().length >= 2
+  // "online" e "digitando…" por conversa; some ao recarregar (não é guardado).
+  const [live, setLive] = useState<Record<string, Live>>({})
+  const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
   const autoRead = !noRead
   const selectedRef = useRef(selected)
   const chatsRef = useRef<Chat[]>([])
@@ -156,7 +176,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   }, [fail])
 
   const openChat = useCallback(
-    async (jid: string) => {
+    async (jid: string, focusId?: string) => {
       const palette = shuffledPalette()
       setConv({
         jid,
@@ -171,16 +191,28 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
       try {
         // Abre com o que está guardado e visível: na primeira vez, só as não lidas.
         const page = await api.messages(jid)
+        let { messages, has_more: hasMore } = page
+        // Aberta pela busca: vai buscando as anteriores (no banco local) até chegar nela.
+        for (let i = 0; focusId && hasMore && i < FOCUS_MAX_PAGES; i++) {
+          if (messages.some((m) => m.id === focusId) || messages.length === 0) break
+          const older = await api.messages(jid, { before: messages[0].ts + 1, limit: 200 })
+          const known = new Set(messages.map((m) => m.id))
+          const fresh = older.messages.filter((m) => !known.has(m.id))
+          if (fresh.length === 0) break
+          messages = [...fresh, ...messages].sort((a, b) => a.ts - b.ts)
+          hasMore = older.has_more
+        }
         if (selectedRef.current !== jid) return
         setConv({
           jid,
-          messages: page.messages,
+          messages,
           firstUnreadId: page.first_unread_id,
-          hasMore: page.has_more,
+          hasMore,
           loading: false,
           error: null,
           pending: false,
           palette,
+          focusId,
         })
       } catch (e) {
         const error = fail(e)
@@ -191,6 +223,25 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   )
 
   useEffect(loadChats, [loadChats])
+
+  // Busca no banco local, um pouco depois da última tecla.
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) return
+    const ctrl = new AbortController()
+    const t = setTimeout(() => {
+      api.search(q, ctrl.signal).then(
+        (result) => setSearch({ q, result }),
+        (e) => {
+          if (!ctrl.signal.aborted) setNotice(fail(e))
+        },
+      )
+    }, SEARCH_DELAY_MS)
+    return () => {
+      clearTimeout(t)
+      ctrl.abort()
+    }
+  }, [query, fail])
 
   const markRead = useCallback(
     async (jid: string) => {
@@ -232,8 +283,23 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
         case 'chat.updated':
           setChats((cs) => [ev.data, ...cs.filter((c) => c.jid !== ev.data.jid)].sort(byActivity))
           break
+        case 'chat.typing': {
+          const { chat_jid, sender_name, typing } = ev.data
+          setTyping(chat_jid, typing ? { kind: typing, who: sender_name } : undefined)
+          break
+        }
+        case 'chat.presence': {
+          const { chat_jid, online, last_seen } = ev.data
+          setLive((l) => ({
+            ...l,
+            [chat_jid]: { ...l[chat_jid], online, lastSeen: last_seen ?? l[chat_jid]?.lastSeen },
+          }))
+          break
+        }
         case 'message.new': {
           const m = ev.data
+          // Mandou: parou de digitar.
+          if (!m.from_me) setTyping(m.chat_jid, undefined)
           maybeNotify(m)
           setConv((c) => {
             if (!c || c.jid !== m.chat_jid || c.messages.some((x) => x.id === m.id)) return c
@@ -285,9 +351,21 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     [autoRead, markRead, onHistoryLoaded],
   )
 
+  /** Liga ou desliga o "digitando…" de uma conversa; sem renovação, some sozinho. */
+  function setTyping(jid: string, typing: Live['typing']) {
+    const timers = typingTimers.current
+    clearTimeout(timers.get(jid))
+    timers.delete(jid)
+    if (typing) timers.set(jid, setTimeout(() => setTyping(jid, undefined), TYPING_TTL_MS))
+    setLive((l) => (l[jid]?.typing === typing ? l : { ...l, [jid]: { ...l[jid], typing } }))
+  }
+
   const onResync = useCallback(() => {
     loadChats()
-    if (selectedRef.current) void openChat(selectedRef.current)
+    if (selectedRef.current) {
+      void openChat(selectedRef.current)
+      watchPresence(selectedRef.current)
+    }
   }, [loadChats, openChat])
 
   const stream = useEvents(onEvent, onResync)
@@ -321,6 +399,36 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [selected, replying, closeChat])
+
+  // Atalhos: Ctrl+K (ou ⌘K) vai para a busca; Alt+↑/↓ abre a conversa de cima/de baixo
+  // na lista da seção atual.
+  const selectStep = useRef<(step: number) => void>(() => undefined)
+  useEffect(() => {
+    selectStep.current = (step) => {
+      if (visible.length === 0) return
+      const at = visible.findIndex((c) => c.jid === selectedRef.current)
+      const next = at < 0 ? (step > 0 ? 0 : visible.length - 1) : at + step
+      const chat = visible[Math.max(0, Math.min(visible.length - 1, next))]
+      if (chat.jid !== selectedRef.current) select(chat.jid)
+    }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.isComposing) return
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+        const search = document.querySelector<HTMLInputElement>('.search__input')
+        if (!search) return
+        e.preventDefault()
+        search.focus()
+        search.select()
+      } else if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault()
+        selectStep.current(e.key === 'ArrowUp' ? -1 : 1)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const closeMenu = useCallback(() => setMenu(null), [])
 
@@ -374,14 +482,15 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     if (next === 'denied') setNotice('O navegador bloqueou as notificações: libere nas permissões do site.')
   }
 
-  function select(jid: string) {
+  function select(jid: string, focusId?: string) {
     if (jid !== selectedRef.current) {
       setReplyTo(null)
+      watchPresence(jid)
       setEditing(null)
     }
     selectedRef.current = jid
     setSelected(jid)
-    void openChat(jid)
+    void openChat(jid, focusId)
     const chat = chats.find((c) => c.jid === jid)
     if (autoRead && chat && chat.unread_count > 0 && conn === 'connected') void markRead(jid)
   }
@@ -396,6 +505,12 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     } catch (e) {
       setNotice(fail(e))
     }
+  }
+
+  /** Resultado da busca: a conversa pode não estar na lista carregada (ex.: muito antiga). */
+  function openFound(chat: Chat | null, jid: string, focusId?: string) {
+    if (chat && !chats.some((c) => c.jid === chat.jid)) setDraftChat(chat)
+    select(jid, focusId)
   }
 
   async function loadOlder() {
@@ -447,6 +562,17 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     try {
       const updated = await api.messageAction(m.chat_jid, m.id, action, days)
       applyMessage(m.chat_jid, m.id, updated)
+    } catch (e) {
+      setNotice(fail(e))
+    }
+  }
+
+  /** Reage; o mesmo emoji que já é seu tira a reação. */
+  async function react(m: Message, emoji: string) {
+    const mine = m.reactions?.find((r) => r.sender_jid === null)?.emoji
+    try {
+      const updated = await api.react(m.chat_jid, m.id, mine === emoji ? '' : emoji)
+      if (updated) applyMessage(m.chat_jid, m.id, updated)
     } catch (e) {
       setNotice(fail(e))
     }
@@ -538,6 +664,19 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     }
   }
 
+  async function sendVoice(rec: Recorded) {
+    if (!selected) return
+    const jid = selected
+    try {
+      const m = await api.sendMedia(jid, rec.blob, { seconds: rec.seconds, voice: true, waveform: rec.waveform })
+      setConv((c) =>
+        c?.jid === jid && !c.messages.some((x) => x.id === m.id) ? { ...c, messages: [...c.messages, m] } : c,
+      )
+    } catch (e) {
+      throw new Error(fail(e))
+    }
+  }
+
   async function send(text: string) {
     if (!selected) return
     const jid = selected
@@ -578,6 +717,22 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     for (const c of chats) if (c.unread_count > 0) n[chatSection(c)] += 1
     return n
   }, [chats])
+  // Contador no ícone do app instalado e no título da aba: conversas com não lidas, sem as
+  // silenciadas e arquivadas (que também não notificam), status e canais.
+  const badge = useMemo(
+    () => chats.filter((c) => c.unread_count > 0 && !c.muted && chatSection(c) === 'chats').length,
+    [chats],
+  )
+  useEffect(() => {
+    document.title = badge > 0 ? `(${badge}) WhatsApp Lite` : 'WhatsApp Lite'
+    const nav = navigator as Navigator & {
+      setAppBadge?: (n?: number) => Promise<void>
+      clearAppBadge?: () => Promise<void>
+    }
+    const done = badge > 0 ? nav.setAppBadge?.(badge) : nav.clearAppBadge?.()
+    done?.catch(() => undefined)
+  }, [badge])
+
   const connClass = stream !== 'open' ? 'warn' : conn === 'connected' ? 'ok' : conn === 'disconnected' || conn === 'connecting' ? 'warn' : 'err'
   const connText = stream !== 'open' ? 'Servidor desconectado…' : CONN_LABEL[conn]
 
@@ -602,12 +757,41 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             Não visualizar ao abrir
           </label>
         </header>
-        <ChatList
-          chats={visible}
-          selected={selected}
-          onSelect={select}
-          onMenu={(chat, x, y) => setMenu({ chat, x, y })}
-        />
+        <div className="search">
+          <input
+            className="search__input"
+            type="search"
+            value={query}
+            placeholder="Buscar conversa ou mensagem"
+            aria-label="Buscar conversa ou mensagem"
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Escape') return
+              // Esc na busca: limpa (e não fecha a conversa aberta).
+              e.stopPropagation()
+              if (query) setQuery('')
+              else e.currentTarget.blur()
+            }}
+          />
+        </div>
+        {searching ? (
+          <SearchResults
+            query={query}
+            result={search.q === query.trim() ? search.result : null}
+            loading={search.q !== query.trim()}
+            chats={chats}
+            onOpenChat={(c) => openFound(c, c.jid)}
+            onOpenMessage={(m) => openFound(null, m.chat_jid, m.id)}
+          />
+        ) : (
+          <ChatList
+            chats={visible}
+            selected={selected}
+            onSelect={select}
+            onMenu={(chat, x, y) => setMenu({ chat, x, y })}
+            live={live}
+          />
+        )}
         {menu && (
           <ChatMenu
             chat={menu.chat}
@@ -633,17 +817,20 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           <Conversation
             chat={chats.find((c) => c.jid === conv.jid) ?? (draftChat?.jid === conv.jid ? draftChat : undefined)}
             conv={conv}
+            live={live[conv.jid]}
             connected={conn === 'connected' && stream === 'open'}
             onBack={closeChat}
             onLoadOlder={loadOlder}
             onMarkRead={() => markRead(conv.jid)}
             onSend={send}
             onSendFile={sendFile}
+            onSendVoice={sendVoice}
             replyTo={replyTo?.chat_jid === conv.jid ? replyTo : null}
             onCancelReply={() => setReplyTo(null)}
             editing={editing?.chat_jid === conv.jid ? editing : null}
             onCancelEdit={() => setEditing(null)}
             onMessagePick={messagePick}
+            onReact={(m, emoji) => void react(m, emoji)}
             onOpenPerson={(jid) => void openPerson({ jid })}
             onOpenPhone={(phone) => void openPerson({ phone })}
           />

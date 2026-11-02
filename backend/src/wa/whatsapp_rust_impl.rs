@@ -13,7 +13,7 @@ use tokio::sync::{mpsc, watch, Notify, Semaphore};
 use whatsapp_rust::buffa;
 use whatsapp_rust::download::{DownloadParams, MediaType};
 use whatsapp_rust::http::HttpRequest;
-use whatsapp_rust::media::{DocumentOptions, ImageOptions, VideoOptions};
+use whatsapp_rust::media::{AudioOptions, DocumentOptions, ImageOptions, VideoOptions};
 use whatsapp_rust::prelude::*;
 use whatsapp_rust::send::{PinDuration, RevokeType};
 use whatsapp_rust::sync_task::MajorSyncTask;
@@ -32,7 +32,7 @@ use whatsapp_rust::MexRequest;
 use super::{qr, OutgoingMedia, Sent, UnreadRef, WaEvent, WhatsApp};
 use crate::model::{
   ChatAction, ChatMeta, ConnState, Contact, MediaRef, Mention, Message, MessageAction, MessageKind,
-  MsgStatus, Quote,
+  MsgStatus, Quote, Reaction, Typing,
 };
 
 pub struct WaOptions {
@@ -56,6 +56,8 @@ pub struct RustWa {
   /// Canais assinados (jid → dados), buscados uma vez por execução.
   channels: tokio::sync::Mutex<Option<HashMap<String, Channel>>>,
   presence: Arc<Presence>,
+  /// Conversa individual cujo "online" e "digitando…" estamos acompanhando.
+  watching: tokio::sync::Mutex<Option<Jid>>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +113,7 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
     qr,
     channels: tokio::sync::Mutex::new(None),
     presence,
+    watching: tokio::sync::Mutex::new(None),
   }))
 }
 
@@ -310,6 +313,28 @@ impl WhatsApp for RustWa {
     }
   }
 
+  async fn react(&self, msg: &Message, emoji: &str) -> Result<()> {
+    let chat = parse_jid(&msg.chat_jid)?;
+    // Em grupo (e status), quem mandou identifica a mensagem.
+    let participant = if (chat.is_group() || chat.is_status_broadcast()) && !msg.from_me {
+      msg.sender_jid.as_deref().map(parse_jid).transpose()?
+    } else {
+      None
+    };
+    let key = wa::MessageKey {
+      remote_jid: Some(chat.to_string()),
+      from_me: Some(msg.from_me),
+      id: Some(msg.id.clone()),
+      participant: participant.as_ref().map(Jid::to_string),
+    };
+    self
+      .client
+      .send_reaction(chat, key, emoji)
+      .await
+      .map_err(|e| anyhow!("{e}"))?;
+    Ok(())
+  }
+
   async fn forward(&self, to_jid: &str, msg: &Message, media: Option<&MediaRef>) -> Result<Sent> {
     let to = parse_jid(to_jid)?;
     let ctx = || {
@@ -500,6 +525,7 @@ impl WhatsApp for RustWa {
     let media_type = match out.kind {
       MessageKind::Image => MediaType::Image,
       MessageKind::Video => MediaType::Video,
+      MessageKind::Audio => MediaType::Audio,
       _ => MediaType::Document,
     };
     let up = self
@@ -535,6 +561,16 @@ impl WhatsApp for RustWa {
           caption: out.caption,
           mimetype: Some(out.mimetype),
           duration_seconds: out.seconds,
+          ..Default::default()
+        },
+      ),
+      MessageKind::Audio => whatsapp_rust::media::audio_message(
+        up,
+        AudioOptions {
+          mimetype: Some(out.mimetype),
+          duration_seconds: out.seconds,
+          ptt: Some(out.voice),
+          waveform: out.waveform,
           ..Default::default()
         },
       ),
@@ -712,6 +748,22 @@ impl WhatsApp for RustWa {
       )
     };
     Ok(Some((pn, lid)))
+  }
+
+  async fn watch_presence(&self, chat_jid: &str) -> Result<()> {
+    let jid = parse_jid(chat_jid)?;
+    if jid.is_group() || jid.is_status_broadcast() || jid.is_newsletter() {
+      return Ok(());
+    }
+    let presence = self.client.presence();
+    let previous = self.watching.lock().await.replace(jid.clone());
+    if let Some(old) = previous.filter(|old| *old != jid) {
+      // Só uma conversa acompanhada por vez: a aberta no app.
+      if let Err(e) = presence.unsubscribe(&old).await {
+        tracing::debug!(error = %e, "falha ao deixar de acompanhar presença");
+      }
+    }
+    presence.subscribe(jid).await.map_err(|e| anyhow!("{e}"))
   }
 
   fn set_reading(&self, reading: bool) {
@@ -919,6 +971,7 @@ impl Translator {
               starred: false,
               pinned: false,
               mentions: vec![],
+              reactions: vec![],
             },
             media: None,
           })
@@ -1071,6 +1124,33 @@ impl Translator {
         }
       }
       Event::HistorySync(lazy) => self.handle_history(lazy).await,
+      Event::ChatPresence(u) => {
+        use whatsapp_rust::wacore::types::presence::{ChatPresence, ChatPresenceMedia};
+        if u.source.is_from_me {
+          return;
+        }
+        let typing = match (u.state, u.media) {
+          (ChatPresence::Composing, ChatPresenceMedia::Audio) => Some(Typing::Audio),
+          (ChatPresence::Composing, _) => Some(Typing::Text),
+          (ChatPresence::Paused, _) => None,
+        };
+        self
+          .send(WaEvent::Typing {
+            chat_jid: u.source.chat.to_non_ad_string(),
+            sender_jid: u.source.sender.to_non_ad_string(),
+            typing,
+          })
+          .await
+      }
+      Event::Presence(p) => {
+        self
+          .send(WaEvent::Presence {
+            jid: p.from.to_non_ad_string(),
+            online: !p.unavailable,
+            last_seen: p.last_seen.map(|t| t.timestamp()),
+          })
+          .await
+      }
       _ => {}
     }
   }
@@ -1227,7 +1307,7 @@ async fn chat_title(client: &Client, jid: &Jid) -> Result<Option<String>> {
 /// Fixação padrão quando a mensagem não diz a duração (a do WhatsApp).
 const DEFAULT_PIN_SECS: i64 = 7 * 24 * 3600;
 
-/// Apagar para todos, editar e fixar/desafixar mensagem.
+/// Apagar para todos, reagir, editar e fixar/desafixar mensagem.
 fn control_event(message: &wa::Message, info: &MessageInfo) -> Option<WaEvent> {
   let m = message.get_base_message();
   let chat_jid = info.source.chat.to_non_ad_string();
@@ -1247,6 +1327,19 @@ fn control_event(message: &wa::Message, info: &MessageInfo) -> Option<WaEvent> {
       return Some(WaEvent::Edited { chat_jid, id, body });
     }
     return None;
+  }
+  if let Some(r) = m.reaction_message.as_option() {
+    let msg_id = r.key.as_option()?.id.clone()?;
+    let src = &info.source;
+    return Some(WaEvent::Reaction {
+      chat_jid,
+      msg_id,
+      sender_jid: (!src.is_from_me).then(|| src.sender.to_non_ad_string()),
+      emoji: r.text.clone().unwrap_or_default(),
+      ts_ms: r
+        .sender_timestamp_ms
+        .unwrap_or_else(|| info.timestamp.timestamp_millis()),
+    });
   }
   if let Some(pin) = m.pin_in_chat_message.as_option() {
     use wa::message::pin_in_chat_message::Type;
@@ -1298,6 +1391,7 @@ fn convert_live(message: &wa::Message, info: &MessageInfo) -> Option<(Message, O
     starred: false,
     pinned: false,
     mentions,
+    reactions: vec![],
   };
   Some((msg, media))
 }
@@ -1531,8 +1625,34 @@ fn convert_history_msg(
     starred: false,
     pinned: false,
     mentions,
+    reactions: history_reactions(wmi, chat_jid, is_group),
   };
   Some((msg, media))
+}
+
+/// Reações que vêm junto da mensagem no histórico (as vazias foram tiradas).
+fn history_reactions(wmi: &wa::WebMessageInfo, chat_jid: &str, is_group: bool) -> Vec<Reaction> {
+  wmi
+    .reactions
+    .iter()
+    .filter_map(|r| {
+      let emoji = r.text.clone().filter(|t| !t.is_empty())?;
+      let key = r.key.as_option()?;
+      let sender_jid = if key.from_me.unwrap_or(false) {
+        None
+      } else if is_group {
+        Some(key.participant.clone()?)
+      } else {
+        Some(chat_jid.to_string())
+      };
+      Some(Reaction {
+        emoji,
+        sender_jid,
+        sender_name: None,
+        ts_ms: r.sender_timestamp_ms.unwrap_or(0),
+      })
+    })
+    .collect()
 }
 
 struct Classified {

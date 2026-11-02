@@ -54,6 +54,16 @@ export interface Message {
   pinned: boolean
   /** Pessoas marcadas; no texto aparecem como `@` + a parte do jid antes do `@`. */
   mentions?: Mention[]
+  /** Reações, uma por pessoa, da mais antiga para a mais nova. */
+  reactions?: Reaction[]
+}
+
+export interface Reaction {
+  emoji: string
+  /** Quem reagiu; `null` = você. */
+  sender_jid: string | null
+  /** "Você", agenda, apelido ou "+telefone". */
+  sender_name?: string
 }
 
 export interface Mention {
@@ -91,3 +101,18 @@ export type ServerEvent =
   | { type: 'chat.deleted'; data: { jid: string } }
   | { type: 'history.loaded'; data: { chat_jid: string; count: number } }
   | { type: 'connection.state'; data: { state: ConnState } }
+  | {
+      type: 'chat.typing'
+      data: { chat_jid: string; sender_jid: string; sender_name: string | null; typing: Typing | null }
+    }
+  | { type: 'chat.presence'; data: { chat_jid: string; online: boolean; last_seen: number | null } }
+
+export type Typing = 'text' | 'audio'
+
+/** O que está acontecendo agora na conversa (não fica guardado). */
+export interface Live {
+  typing?: { kind: Typing; who: string | null }
+  online?: boolean
+  /** Visto por último (segundos), quando a pessoa deixa mostrar. */
+  lastSeen?: number | null
+}

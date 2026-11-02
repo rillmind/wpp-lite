@@ -79,6 +79,16 @@ impl MsgStatus {
   }
 }
 
+/// O que a pessoa está fazendo na conversa agora.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Typing {
+  /// Digitando.
+  Text,
+  /// Gravando áudio.
+  Audio,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConnState {
@@ -121,6 +131,23 @@ pub struct Message {
   /// Pessoas marcadas (`@`) no texto ou na legenda.
   #[serde(skip_serializing_if = "Vec::is_empty")]
   pub mentions: Vec<Mention>,
+  /// Reações (uma por pessoa), da mais antiga para a mais nova.
+  #[serde(skip_serializing_if = "Vec::is_empty")]
+  pub reactions: Vec<Reaction>,
+}
+
+/// Reação de uma pessoa a uma mensagem.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Reaction {
+  pub emoji: String,
+  /// Quem reagiu; `None` = você.
+  pub sender_jid: Option<String>,
+  /// Nome de exibição de quem reagiu ("Você", agenda, apelido ou `+telefone`); não é gravado.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub sender_name: Option<String>,
+  /// Unix ms.
+  #[serde(skip)]
+  pub ts_ms: i64,
 }
 
 /// Pessoa marcada numa mensagem. No texto ela aparece como `@` + a parte do jid antes do `@`.

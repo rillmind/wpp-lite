@@ -174,6 +174,51 @@ async fn handle(store: &Store, events: &broadcast::Sender<ApiEvent>, ev: WaEvent
 pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
   let out = match ev {
     WaEvent::Connection(state) => vec![ApiEvent::ConnectionState { state }],
+    WaEvent::Typing {
+      chat_jid,
+      sender_jid,
+      typing,
+    } => {
+      store
+        .run(move |db| {
+          // Só de conversas que existem aqui (pelo @lid ou pelo telefone).
+          let Some(chat) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
+          let sender_name = if chat.ends_with("@g.us") {
+            db.person_name(&sender_jid)?
+          } else {
+            None
+          };
+          Ok(vec![ApiEvent::Typing {
+            chat_jid: chat,
+            sender_jid,
+            sender_name,
+            typing,
+          }])
+        })
+        .await?
+    }
+    WaEvent::Presence {
+      jid,
+      online,
+      last_seen,
+    } => {
+      store
+        .run(move |db| {
+          Ok(
+            db.existing_chat(&jid)?
+              .map(|chat_jid| ApiEvent::Presence {
+                chat_jid,
+                online,
+                last_seen,
+              })
+              .into_iter()
+              .collect(),
+          )
+        })
+        .await?
+    }
     WaEvent::Me { jids } => {
       store.run(move |db| db.set_me(&jids)).await?;
       vec![]
@@ -353,6 +398,32 @@ pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
             return Ok(vec![]);
           }
           message_changed(db, &chat_jid, &id)
+        })
+        .await?
+    }
+    WaEvent::Reaction {
+      chat_jid,
+      msg_id,
+      sender_jid,
+      emoji,
+      ts_ms,
+    } => {
+      store
+        .run(move |db| {
+          // A reação pode vir pelo outro jid da conversa (@lid ou telefone).
+          let Some(chat) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
+          if !db.set_reaction(&chat, &msg_id, sender_jid.as_deref(), &emoji, ts_ms)? {
+            return Ok(vec![]);
+          }
+          // A prévia da lista não muda: só a mensagem.
+          Ok(
+            db.get_message(&chat, &msg_id)?
+              .map(ApiEvent::MessageUpdated)
+              .into_iter()
+              .collect(),
+          )
         })
         .await?
     }
