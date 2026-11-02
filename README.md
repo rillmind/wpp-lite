@@ -27,6 +27,7 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   entra na lista na primeira mensagem. Telefones escritos nas mensagens (com `+DDI`, ou brasileiros
   com DDD, como `(11) 99999-8888`) também são clicáveis: o app confere no WhatsApp se o número
   tem conta e abre a conversa com ele.
+  Links (`https://…`, `www.…`) abrem numa aba nova do navegador.
 - Mostra as fotos de perfil, que carregam sozinhas.
 - Imagens, figurinhas, vídeos, áudios e documentos aparecem como um botão com o tamanho do
   arquivo (e a duração, em vídeo e áudio); só são baixados do WhatsApp quando você clica. Imagem
