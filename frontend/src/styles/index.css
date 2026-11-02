@@ -91,6 +91,13 @@ code {
   background: var(--bg-bar);
   border-right: 1px solid var(--border);
 }
+.rail__spacer {
+  flex: 1;
+}
+.rail__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 .rail__sep {
   width: 60%;
   margin: 0.25rem 0;
