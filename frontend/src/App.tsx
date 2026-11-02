@@ -204,6 +204,17 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           }
           break
         }
+        case 'chat.deleted': {
+          // Apagada no celular: sai da lista e, se estava aberta, fecha.
+          const { jid } = ev.data
+          setChats((cs) => cs.filter((c) => c.jid !== jid))
+          if (selectedRef.current === jid) {
+            selectedRef.current = null
+            setSelected(null)
+            setConv(null)
+          }
+          break
+        }
         case 'history.loaded':
           void onHistoryLoaded(ev.data.chat_jid, ev.data.count)
           break

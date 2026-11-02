@@ -87,6 +87,14 @@ pub enum WaEvent {
     chat_jid: String,
     archived: bool,
   },
+  /// Conversa apagada (`clear = false`) ou limpa (`clear = true`) no celular: some o que
+  /// chegou até `upto` (segundos); o que veio depois fica.
+  ChatCleared {
+    chat_jid: String,
+    upto: i64,
+    clear: bool,
+    keep_starred: bool,
+  },
   /// Nome da agenda ou apelido de uma pessoa.
   Contact(Contact),
   /// O `@lid` corresponde a este jid de telefone (`@s.whatsapp.net`).

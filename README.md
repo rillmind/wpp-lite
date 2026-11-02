@@ -51,7 +51,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   e marcar como lida ou não lida. Fixar, silenciar e lida/não lida valem também no celular.
   Arquivar fica só no app: o que você arquiva ou desarquiva aqui não muda o celular, e uma
   conversa arquivada aqui só sai das arquivadas quando você desarquiva aqui. O que você arquiva no
-  celular também aparece arquivado aqui. Apagar ou limpar conversa não existe aqui, de propósito.
+  celular também aparece arquivado aqui. Apagar ou limpar uma conversa no celular apaga ou limpa
+  aqui também (só o que tinha chegado até ali; mensagens que chegarem depois ficam). Apagar ou limpar conversa não existe aqui, de propósito.
 - Dois cliques numa mensagem, ou no espaço ao lado dela até a borda (toque duplo no celular),
   marcam a mensagem para responder.
 - Botão direito numa mensagem (toque longo no Android) abre: responder (citando a mensagem),

@@ -356,6 +356,25 @@ pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
         })
         .await?
     }
+    WaEvent::ChatCleared {
+      chat_jid,
+      upto,
+      clear,
+      keep_starred,
+    } => {
+      store
+        .run(move |db| {
+          let Some(chat_jid) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
+          if db.clear_chat(&chat_jid, upto, clear, keep_starred)? {
+            Ok(vec![ApiEvent::ChatDeleted { jid: chat_jid }])
+          } else {
+            chat_updated(db, &chat_jid)
+          }
+        })
+        .await?
+    }
     WaEvent::PhoneArchive { chat_jid, archived } => {
       store
         .run(move |db| {

@@ -218,6 +218,52 @@ impl Db {
     self.upsert_chat(&meta)
   }
 
+  /// Apaga as mensagens até `upto` (segundos). Apagar (`clear = false`) tira também a
+  /// conversa se não sobrar nada; limpar a mantém. Devolve `true` se a conversa saiu.
+  pub fn clear_chat(
+    &mut self,
+    chat_jid: &str,
+    upto: i64,
+    clear: bool,
+    keep_starred: bool,
+  ) -> Result<bool> {
+    let tx = self.conn.transaction()?;
+    let keep = if keep_starred { "AND starred = 0" } else { "" };
+    tx.execute(
+      &format!(
+        "DELETE FROM media WHERE chat_jid = ?1 AND msg_id IN
+           (SELECT id FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep})"
+      ),
+      params![chat_jid, upto],
+    )?;
+    tx.execute(
+      &format!("DELETE FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep}"),
+      params![chat_jid, upto],
+    )?;
+    let left: i64 = tx.query_row(
+      "SELECT COUNT(*) FROM messages WHERE chat_jid = ?1",
+      params![chat_jid],
+      |r| r.get(0),
+    )?;
+    let removed = !clear && left == 0;
+    if removed {
+      tx.execute("DELETE FROM chats WHERE jid = ?1", params![chat_jid])?;
+    } else {
+      // O que sobrou define contador e prévia.
+      tx.execute(
+        "UPDATE chats SET unread_count = (SELECT COUNT(*) FROM messages
+           WHERE chat_jid = ?1 AND from_me = 0 AND is_read = 0)
+         WHERE jid = ?1",
+        params![chat_jid],
+      )?;
+    }
+    tx.commit()?;
+    if !removed {
+      self.refresh_preview(chat_jid)?;
+    }
+    Ok(removed)
+  }
+
   /// Arquivamento feito no celular. Arquivar lá vale também aqui (por cima da escolha do
   /// app); desarquivar lá não mexe numa conversa arquivada aqui.
   pub fn set_phone_archived(&self, chat_jid: &str, archived: bool) -> Result<()> {
