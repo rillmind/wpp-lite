@@ -1584,9 +1584,14 @@ fn classify(message: &wa::Message) -> Option<Classified> {
     return None;
   };
   let quoted_id = ctx.and_then(|c| c.stanza_id.clone());
-  let mentions = ctx
+  let mut mentions: Vec<Mention> = ctx
     .map(|c| c.mentioned_jid.iter().map(Mention::new).collect())
     .unwrap_or_default();
+  // "@todos": não traz jid nenhum; o WhatsApp sinaliza em `nonJidMentions`.
+  if let Some(n) = ctx.and_then(|c| c.non_jid_mentions).filter(|n| *n != 0) {
+    tracing::info!(non_jid_mentions = n, "mensagem marca todos do grupo");
+    mentions.push(Mention::new(crate::model::MENTION_EVERYONE));
+  }
   Some(Classified {
     kind,
     body,

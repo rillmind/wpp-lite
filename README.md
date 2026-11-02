@@ -21,7 +21,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   mensagem, cada pessoa numa cor (as 14 cores de destaque do Catppuccin, sorteadas ao abrir a
   conversa; uma cor só se repete com mais de 14 pessoas) e com a foto de perfil dela ao lado da
   primeira mensagem de cada sequência. As marcações (`@`) aparecem com o nome
-  da pessoa, destacadas, e com fundo quando quem foi marcado é você. Clicar no nome de quem
+  da pessoa, destacadas, e com fundo quando quem foi marcado é você (inclusive o "@todos", que
+  marca o grupo inteiro). Clicar no nome de quem
   mandou ou numa marcação abre a conversa com a pessoa; se ainda não houver, abre uma vazia, que
   entra na lista na primeira mensagem. Telefones escritos nas mensagens (com `+DDI`, ou brasileiros
   com DDD, como `(11) 99999-8888`) também são clicáveis: o app confere no WhatsApp se o número
