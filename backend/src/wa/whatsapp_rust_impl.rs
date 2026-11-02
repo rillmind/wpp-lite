@@ -701,6 +701,25 @@ impl WhatsApp for RustWa {
   }
 }
 
+/// Desfaz o "online" que a biblioteca anuncia sozinha ao conectar.
+///
+/// Enquanto um aparelho conectado aparece online, o WhatsApp entrega as
+/// notificações ao celular sem som nem vibração, como se a pessoa já estivesse
+/// lendo em outro lugar. O servidor fica ligado o tempo todo, então anunciar
+/// online silenciaria o celular para sempre. Repete depois de alguns segundos
+/// porque o anúncio da biblioteca pode chegar logo depois do evento.
+fn stay_offline(client: &Arc<Client>) {
+  let client = client.clone();
+  tokio::spawn(async move {
+    for wait in [0, 3] {
+      tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
+      if let Err(e) = client.presence().set_unavailable().await {
+        tracing::debug!(error = ?e, "não foi possível marcar o aparelho como offline");
+      }
+    }
+  });
+}
+
 /// Converte eventos da biblioteca em [`WaEvent`].
 struct Translator {
   /// Último QR de pareamento (para a interface); some ao parear.
@@ -727,8 +746,11 @@ impl Translator {
           .map(|j| j.to_non_ad_string())
           .collect();
         self.send(WaEvent::Me { jids }).await;
-        self.set_state(ConnState::Connected).await
+        self.set_state(ConnState::Connected).await;
+        stay_offline(client);
       }
+      // A biblioteca também se anuncia online ao receber o próprio nome.
+      Event::SelfPushNameUpdated(_) => stay_offline(client),
       Event::Disconnected(_) | Event::StreamError(_) | Event::ConnectFailure(_) => {
         self.set_state(ConnState::Disconnected).await
       }
