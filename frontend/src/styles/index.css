@@ -144,6 +144,14 @@ code {
   background: var(--bg-selected);
   color: var(--fg);
 }
+/* O sino mostra o estado pelo ícone (com ou sem traço) e pela cor, sem fundo. */
+.rail__btn--notify[aria-pressed='true'] {
+  background: transparent;
+  color: var(--accent);
+}
+.rail__btn--notify[aria-pressed='true']:hover {
+  background: var(--bg-hover);
+}
 .rail__badge {
   position: absolute;
   top: -2px;
@@ -422,12 +430,17 @@ code {
 .bubble--out .mention {
   color: var(--tick-read-out);
 }
-.phone-link {
+.phone-link,
+.text-link {
   color: var(--link);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.bubble--out .phone-link {
+.text-link {
+  overflow-wrap: anywhere;
+}
+.bubble--out .phone-link,
+.bubble--out .text-link {
   color: var(--tick-read-out);
 }
 .mention--link,

@@ -1,6 +1,6 @@
 import { Fragment } from 'react'
 import type { Mention } from '../api/types'
-import { splitMentions, splitPhones } from './format'
+import { splitLinks, splitMentions, splitPhones } from './format'
 
 interface Props {
   text: string
@@ -11,13 +11,13 @@ interface Props {
   onPhone?: (digits: string) => void
 }
 
-/** Texto de mensagem com as marcações (`@Nome`) e os telefones clicáveis. */
+/** Texto de mensagem com as marcações (`@Nome`), os links e os telefones clicáveis. */
 export function RichText({ text, mentions, onMention, onPhone }: Props) {
   return (
     <>
       {splitMentions(text, mentions).map((p, i) => {
         const m = p.mention
-        if (!m) return <Phones key={i} text={p.text} onPhone={onPhone} />
+        if (!m) return <Links key={i} text={p.text} onPhone={onPhone} />
         if (m.me || !onMention) {
           return (
             <span key={i} className={m.me ? 'mention mention--me' : 'mention'}>
@@ -38,6 +38,31 @@ export function RichText({ text, mentions, onMention, onPhone }: Props) {
           </button>
         )
       })}
+    </>
+  )
+}
+
+/** Links abrem numa aba nova, sem passar o endereço do app (`noreferrer`). */
+function Links({ text, onPhone }: { text: string; onPhone?: (digits: string) => void }) {
+  return (
+    <>
+      {splitLinks(text).map((p, i) =>
+        p.url ? (
+          <a
+            key={i}
+            className="text-link"
+            href={p.url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            title={p.url}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            {p.text}
+          </a>
+        ) : (
+          <Phones key={i} text={p.text} onPhone={onPhone} />
+        ),
+      )}
     </>
   )
 }

@@ -62,6 +62,43 @@ export function withMentionNames(text: string, mentions: Mention[] | undefined):
     .join('')
 }
 
+/** Uma parte do texto: comum ou um link (`url`: endereço http/https pronto para abrir). */
+export type LinkPart = { text: string; url?: string }
+
+// http(s)://… ou www.…, até o primeiro espaço. A pontuação do fim fica de fora (veja `trimUrl`).
+const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"]+/gi
+
+/** Tira do fim a pontuação da frase e o `)` que não abriu dentro do link. */
+function trimUrl(raw: string): string {
+  let url = raw.replace(/[.,;:!?'"*_~]+$/, '')
+  while (url.endsWith(')') && (url.match(/\(/g)?.length ?? 0) < (url.match(/\)/g)?.length ?? 0)) {
+    url = url.slice(0, -1).replace(/[.,;:!?'"*_~]+$/, '')
+  }
+  return url
+}
+
+/** Divide o texto nos links que dá para abrir. Só http e https. */
+export function splitLinks(text: string): LinkPart[] {
+  const parts: LinkPart[] = []
+  let last = 0
+  for (const match of text.matchAll(URL_RE)) {
+    const shown = trimUrl(match[0])
+    const href = /^www\./i.test(shown) ? `https://${shown}` : shown
+    let url: URL
+    try {
+      url = new URL(href)
+    } catch {
+      continue
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') continue
+    if (match.index > last) parts.push({ text: text.slice(last, match.index) })
+    parts.push({ text: shown, url: url.href })
+    last = match.index + shown.length
+  }
+  if (last < text.length) parts.push({ text: text.slice(last) })
+  return parts
+}
+
 /** Uma parte do texto: comum ou um telefone (`phone`: só dígitos, com DDI). */
 export type PhonePart = { text: string; phone?: string }
 

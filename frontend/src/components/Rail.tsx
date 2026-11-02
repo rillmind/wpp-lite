@@ -60,7 +60,7 @@ export function Rail({ section, unread, onSection, conn, notify, onToggleNotify 
       <span className="rail__spacer" />
       <button
         type="button"
-        className="rail__btn"
+        className="rail__btn rail__btn--notify"
         aria-pressed={notify === 'on'}
         aria-label={NOTIFY_TIP[notify]}
         title={NOTIFY_TIP[notify]}
