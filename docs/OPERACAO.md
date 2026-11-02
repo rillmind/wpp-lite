@@ -59,5 +59,9 @@ e `:1.2`.
 No GitHub (Settings → Secrets and variables → Actions): variável `DOCKERHUB_USERNAME` e secret
 `DOCKERHUB_TOKEN` (access token do Docker Hub, Read & Write).
 
+A página do repositório no Docker Hub (descrição curta e o texto de `docs/DOCKERHUB.md`) é
+atualizada a cada push na `main` quando existe o secret `DOCKERHUB_README_TOKEN`: um access token
+do Docker Hub com **Read, Write, Delete** (a API de descrição exige). Sem ele o passo é pulado.
+
 Para gerar a imagem localmente: `docker build -t softfrost/wpp-lite:dev .` e
 `WPP_TAG=dev docker compose up -d`.
