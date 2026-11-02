@@ -1220,6 +1220,36 @@ code {
   background: var(--ctp-red);
 }
 
+/* Gravando mensagem de voz */
+.composer__row--recording {
+  align-items: center;
+}
+.recording {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.recording__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ctp-red);
+  animation: recording-pulse 1s ease-in-out infinite;
+}
+@keyframes recording-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.composer__mic {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* "Rascunho:" na lista, para a conversa com texto não enviado */
 .chat-item__draft {
   color: var(--ok);

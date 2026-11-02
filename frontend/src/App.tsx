@@ -28,6 +28,7 @@ import {
 } from './components/format'
 import { Rail } from './components/Rail'
 import { SearchResults, type SearchResult } from './components/SearchResults'
+import type { Recorded } from './api/voice'
 import { notifyState, showNotification, toggleNotify, type NotifyState } from './api/notify'
 
 // Marcada: abrir a conversa não envia recibo de leitura. Desmarcada (padrão): envia.
@@ -614,6 +615,19 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     }
   }
 
+  async function sendVoice(rec: Recorded) {
+    if (!selected) return
+    const jid = selected
+    try {
+      const m = await api.sendMedia(jid, rec.blob, { seconds: rec.seconds, voice: true, waveform: rec.waveform })
+      setConv((c) =>
+        c?.jid === jid && !c.messages.some((x) => x.id === m.id) ? { ...c, messages: [...c.messages, m] } : c,
+      )
+    } catch (e) {
+      throw new Error(fail(e))
+    }
+  }
+
   async function send(text: string) {
     if (!selected) return
     const jid = selected
@@ -749,6 +763,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             onMarkRead={() => markRead(conv.jid)}
             onSend={send}
             onSendFile={sendFile}
+            onSendVoice={sendVoice}
             replyTo={replyTo?.chat_jid === conv.jid ? replyTo : null}
             onCancelReply={() => setReplyTo(null)}
             onMessagePick={messagePick}

@@ -1,5 +1,6 @@
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
 import type { Chat, Message, Reaction } from '../api/types'
+import type { Recorded } from '../api/voice'
 import { Avatar } from './Avatar'
 import { Composer, type FileMeta } from './Composer'
 import { MediaView } from './MediaView'
@@ -41,6 +42,7 @@ interface Props {
   onMarkRead: () => Promise<void>
   onSend: (text: string) => Promise<void>
   onSendFile: (file: File, caption: string | null, meta: FileMeta) => Promise<void>
+  onSendVoice: (rec: Recorded) => Promise<void>
   /** Mensagem sendo respondida (aparece acima da caixa). */
   replyTo: Message | null
   onCancelReply: () => void
@@ -113,6 +115,7 @@ export function Conversation({
   onMarkRead,
   onSend,
   onSendFile,
+  onSendVoice,
   replyTo,
   onCancelReply,
   onMessagePick,
@@ -360,6 +363,7 @@ export function Conversation({
           disabled={!connected}
           onSend={onSend}
           onSendFile={onSendFile}
+          onSendVoice={onSendVoice}
           reply={replyTo ? { who: who(replyTo), text: messageText(replyTo) } : null}
           onCancelReply={onCancelReply}
         />

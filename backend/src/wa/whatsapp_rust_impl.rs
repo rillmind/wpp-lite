@@ -13,7 +13,7 @@ use tokio::sync::{mpsc, watch, Notify, Semaphore};
 use whatsapp_rust::buffa;
 use whatsapp_rust::download::{DownloadParams, MediaType};
 use whatsapp_rust::http::HttpRequest;
-use whatsapp_rust::media::{DocumentOptions, ImageOptions, VideoOptions};
+use whatsapp_rust::media::{AudioOptions, DocumentOptions, ImageOptions, VideoOptions};
 use whatsapp_rust::prelude::*;
 use whatsapp_rust::send::{PinDuration, RevokeType};
 use whatsapp_rust::sync_task::MajorSyncTask;
@@ -508,6 +508,7 @@ impl WhatsApp for RustWa {
     let media_type = match out.kind {
       MessageKind::Image => MediaType::Image,
       MessageKind::Video => MediaType::Video,
+      MessageKind::Audio => MediaType::Audio,
       _ => MediaType::Document,
     };
     let up = self
@@ -543,6 +544,16 @@ impl WhatsApp for RustWa {
           caption: out.caption,
           mimetype: Some(out.mimetype),
           duration_seconds: out.seconds,
+          ..Default::default()
+        },
+      ),
+      MessageKind::Audio => whatsapp_rust::media::audio_message(
+        up,
+        AudioOptions {
+          mimetype: Some(out.mimetype),
+          duration_seconds: out.seconds,
+          ptt: Some(out.voice),
+          waveform: out.waveform,
           ..Default::default()
         },
       ),
