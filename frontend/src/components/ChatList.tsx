@@ -1,4 +1,5 @@
 import type { Chat, MsgStatus } from '../api/types'
+import { getDraft } from '../api/drafts'
 import { Avatar } from './Avatar'
 import { chatName, formatListTime, formatPerson } from './format'
 
@@ -39,18 +40,24 @@ export function ChatList({ chats, selected, onSelect, onMenu }: Props) {
                 </span>
               </span>
               <span className="chat-item__bottom">
-                <span className="chat-item__preview">
-                  {c.last_status && (
-                    <span
-                      className={c.last_status === 'read' ? 'chat-item__tick chat-item__tick--read' : 'chat-item__tick'}
-                      aria-label={TICK_LABEL[c.last_status]}
-                    >
-                      {c.last_status === 'sent' ? '✓' : '✓✓'}
-                    </span>
-                  )}
-                  {c.last_sender && c.last_msg_preview && `${formatPerson(c.last_sender)}: `}
-                  {c.last_msg_preview ?? ''}
-                </span>
+                {c.jid !== selected && getDraft(c.jid) ? (
+                  <span className="chat-item__preview">
+                    <span className="chat-item__draft">Rascunho:</span> {getDraft(c.jid)}
+                  </span>
+                ) : (
+                  <span className="chat-item__preview">
+                    {c.last_status && (
+                      <span
+                        className={c.last_status === 'read' ? 'chat-item__tick chat-item__tick--read' : 'chat-item__tick'}
+                        aria-label={TICK_LABEL[c.last_status]}
+                      >
+                        {c.last_status === 'sent' ? '✓' : '✓✓'}
+                      </span>
+                    )}
+                    {c.last_sender && c.last_msg_preview && `${formatPerson(c.last_sender)}: `}
+                    {c.last_msg_preview ?? ''}
+                  </span>
+                )}
                 {c.muted && (
                   <svg className="chat-item__pin" viewBox="0 0 24 24" width="16" height="16" aria-label="Silenciada">
                     <path

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
+import { getDraft, setDraft } from '../api/drafts'
 import { formatBytes } from './format'
 
 /** Maior arquivo aceito pelo backend (o limite do WhatsApp para mídia). */
@@ -11,6 +12,8 @@ export interface FileMeta {
 }
 
 interface Props {
+  /** Conversa: o rascunho fica guardado por ela. */
+  jid: string
   disabled: boolean
   onSend: (text: string) => Promise<void>
   /** Um arquivo por vez; `caption` só no primeiro de um lote. */
@@ -65,13 +68,18 @@ async function probe(file: File): Promise<FileMeta> {
 
 let nextId = 1
 
-export function Composer({ disabled, onSend, onSendFile, reply, onCancelReply }: Props) {
-  const [text, setText] = useState('')
+export function Composer({ jid, disabled, onSend, onSendFile, reply, onCancelReply }: Props) {
+  const [text, setTextState] = useState(() => getDraft(jid))
   const [files, setFiles] = useState<Pending[]>([])
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const input = useRef<HTMLTextAreaElement>(null)
   const picker = useRef<HTMLInputElement>(null)
+  // O que está escrito vira o rascunho da conversa (some ao enviar).
+  const setText = (value: string) => {
+    setTextState(value)
+    setDraft(jid, value)
+  }
   const filesRef = useRef(files)
   useEffect(() => {
     filesRef.current = files

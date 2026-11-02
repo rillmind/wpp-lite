@@ -319,6 +319,7 @@ export function Conversation({
       ) : (
         <Composer
           key={conv.jid}
+          jid={conv.jid}
           disabled={!connected}
           onSend={onSend}
           onSendFile={onSendFile}
