@@ -9,16 +9,32 @@ import type { FileMeta } from './components/Composer'
 import { Confirm, type ConfirmRequest } from './components/Dialog'
 import { ForwardDialog } from './components/ForwardDialog'
 import type { MessagePick } from './components/MessageMenu'
-import { copyText, securityCode, shuffledPalette, withMentionNames } from './components/format'
 import { Conversation, type ConvState } from './components/Conversation'
 import { Login } from './components/Login'
 import { usePairing } from './api/usePairing'
 import { PairingQr } from './components/PairingQr'
-import { chatSection, SECTION_TITLE, type Section } from './components/format'
+import {
+  chatName,
+  chatSection,
+  copyText,
+  formatPerson,
+  isReadOnly,
+  messageText,
+  SECTION_TITLE,
+  securityCode,
+  shuffledPalette,
+  withMentionNames,
+  type Section,
+} from './components/format'
 import { Rail } from './components/Rail'
+import { notifyState, showNotification, toggleNotify, type NotifyState } from './api/notify'
 
 // Marcada: abrir a conversa não envia recibo de leitura. Desmarcada (padrão): envia.
 const NO_READ_KEY = 'wpp.noRead'
+/** Espera para a notificação do app vir depois da do celular. */
+const NOTIFY_DELAY_MS = 1500
+/** Mais velha que isso (ex.: entregue na reconexão), não notifica. */
+const NOTIFY_MAX_AGE_MS = 2 * 60_000
 /** Quanto esperar o celular mandar as mensagens antigas. */
 const HISTORY_TIMEOUT_MS = 30_000
 
@@ -96,10 +112,32 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [noRead, setNoRead] = useState(loadNoRead)
   const autoRead = !noRead
   const selectedRef = useRef(selected)
+  const chatsRef = useRef<Chat[]>([])
+  const [notify, setNotify] = useState<NotifyState>(notifyState)
+  const notifyRef = useRef(notify)
   const convRef = useRef<ConvState | null>(null)
   useLayoutEffect(() => {
     selectedRef.current = selected
   }, [selected])
+  useLayoutEffect(() => {
+    chatsRef.current = chats
+  }, [chats])
+  useLayoutEffect(() => {
+    notifyRef.current = notify
+  }, [notify])
+  // Clique na notificação (vem do service worker): abre a conversa.
+  const selectRef = useRef<(jid: string) => void>(() => undefined)
+  useEffect(() => {
+    selectRef.current = select
+  })
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.type === 'open-chat' && typeof e.data.jid === 'string') selectRef.current(e.data.jid)
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [])
   useLayoutEffect(() => {
     convRef.current = conv
   }, [conv])
@@ -195,6 +233,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           break
         case 'message.new': {
           const m = ev.data
+          maybeNotify(m)
           setConv((c) => {
             if (!c || c.jid !== m.chat_jid || c.messages.some((x) => x.id === m.id)) return c
             return { ...c, messages: [...c.messages, m] }
@@ -292,6 +331,32 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   function chooseSection(s: Section) {
     setSection(s)
     if (s === 'status' && chats.some((c) => c.jid === STATUS_JID)) select(STATUS_JID)
+  }
+
+  // Notificação do app: só depois que o WhatsApp já avisou o celular (que toca e vibra
+  // por conta própria), e só quando você não está olhando aquela conversa.
+  function maybeNotify(m: Message) {
+    if (notifyRef.current !== 'on' || m.from_me || isReadOnly(m.chat_jid)) return
+    // Mensagens velhas que chegam de uma vez ao reconectar não viram notificação.
+    if (Date.now() - m.ts * 1000 > NOTIFY_MAX_AGE_MS) return
+    const chat = chatsRef.current.find((c) => c.jid === m.chat_jid)
+    if (chat?.muted) return
+    setTimeout(() => {
+      const watching =
+        selectedRef.current === m.chat_jid && document.visibilityState === 'visible' && document.hasFocus()
+      if (watching) return
+      const sender = m.sender_name ? formatPerson(m.sender_name) : null
+      const title = chat ? chatName(chat) : (sender ?? 'Nova mensagem')
+      const text = messageText(m)
+      const body = chat?.is_group && sender ? `${sender}: ${text}` : text
+      void showNotification(title, body, m.chat_jid).catch(() => undefined)
+    }, NOTIFY_DELAY_MS)
+  }
+
+  async function onToggleNotify() {
+    const next = await toggleNotify()
+    setNotify(next)
+    if (next === 'denied') setNotice('O navegador bloqueou as notificações: libere nas permissões do site.')
   }
 
   function select(jid: string) {
@@ -491,6 +556,8 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
         unread={unread}
         onSection={chooseSection}
         conn={{ level: connClass, text: connText }}
+        notify={notify}
+        onToggleNotify={() => void onToggleNotify()}
       />
       <aside className="sidebar">
         <header className="topbar">

@@ -1,3 +1,4 @@
+import type { NotifyState } from '../api/notify'
 import { SECTION_TITLE, type Section } from './format'
 
 interface Props {
@@ -7,7 +8,18 @@ interface Props {
   onSection: (s: Section) => void
   /** Estado da conexão: cor do pontinho e texto do balão. */
   conn: { level: 'ok' | 'warn' | 'err'; text: string }
+  notify: NotifyState
+  onToggleNotify: () => void
 }
+
+const NOTIFY_TIP: Record<NotifyState, string> = {
+  on: 'Notificações ligadas (com a aba aberta)',
+  off: 'Ligar notificações',
+  denied: 'Notificações bloqueadas no navegador: libere nas permissões do site',
+  unsupported: 'Notificações só pelo endereço HTTPS (https://…ts.net)',
+}
+const BELL = 'M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0'
+const BELL_OFF = 'M6 16V11a6 6 0 0 1 9-5.2M18 11v5l1.5 2H6M10 20a2 2 0 0 0 4 0M4 4l16 16'
 
 const ICON: Record<Section, string> = {
   chats: 'M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8l-4 4V5a1 1 0 0 1 1-1z',
@@ -17,7 +29,7 @@ const ICON: Record<Section, string> = {
 }
 
 /** Barra lateral estreita, com as seções do app. */
-export function Rail({ section, unread, onSection, conn }: Props) {
+export function Rail({ section, unread, onSection, conn, notify, onToggleNotify }: Props) {
   const item = (s: Section) => (
     <button
       key={s}
@@ -45,6 +57,18 @@ export function Rail({ section, unread, onSection, conn }: Props) {
       {item('channels')}
       <span className="rail__sep" aria-hidden="true" />
       {item('archived')}
+      <span className="rail__spacer" />
+      <button
+        type="button"
+        className="rail__btn"
+        aria-pressed={notify === 'on'}
+        aria-label={NOTIFY_TIP[notify]}
+        title={NOTIFY_TIP[notify]}
+        disabled={notify === 'unsupported'}
+        onClick={onToggleNotify}
+      >
+        <Icon d={notify === 'on' ? BELL : BELL_OFF} />
+      </button>
       <span
         className={`rail__conn conn--${conn.level}`}
         role="status"

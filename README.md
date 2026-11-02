@@ -39,6 +39,11 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   selecionada (em telas de toque não, para não abrir o teclado). O Esc vai um passo por vez:
   fecha a imagem ampliada, desmarca a mensagem marcada para responder, tira o cursor da caixa de
   mensagem e, por fim, fecha a conversa e volta à tela inicial.
+- Notificações no navegador (o sino na barra lateral), com a aba aberta, mesmo em segundo
+  plano. O celular continua tocando e vibrando normalmente: a notificação do app vem logo depois
+  e não muda nada do que o WhatsApp manda para ele. Não notifica conversas silenciadas, status,
+  canais nem a conversa que você está olhando; clicar abre a conversa. Só funciona pelo endereço
+  HTTPS (por exemplo o do `tailscale serve`), não por `http://`.
 - Envia imagens, vídeos e documentos: pelo clipe ao lado da caixa de mensagem ou colando
   (Ctrl+V) uma imagem ou arquivo copiado, como um print. Os arquivos aparecem antes de enviar (dá
   para tirar), o texto escrito vira a legenda do primeiro, e vão ao clicar em "Enviar". JPEG e PNG
