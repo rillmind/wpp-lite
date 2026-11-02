@@ -61,6 +61,10 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, no topo da lista,
   abrir não marca nada: só o botão "Marcar como lida" faz isso. O que você lê no celular também
   aparece como lido aqui.
+- Só aparece como "online" para o WhatsApp enquanto você lê uma conversa no app (aba em foco,
+  conversa aberta, mexendo nos últimos 2 minutos). Fora disso, as notificações tocam e vibram no
+  celular normalmente, mesmo com o servidor ligado. Enquanto está online, o WhatsApp deixa de
+  vibrar o celular para todas as conversas, não só a aberta.
 - Guarda o que chega a partir do pareamento, e tudo o que já foi carregado fica guardado. Na
   primeira vez, cada conversa mostra só as mensagens não lidas; sem nenhuma, abre vazia com o
   botão "Carregar mensagens". O botão mostra as 20 anteriores, pedindo ao celular o que não

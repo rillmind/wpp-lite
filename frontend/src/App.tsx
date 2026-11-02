@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { api, ApiError, getToken, setToken } from './api/client'
 import type { Chat, ConnState, Message, ServerEvent } from './api/types'
 import { useEvents } from './api/useEvents'
+import { useReading } from './api/useReading'
 import { ChatList } from './components/ChatList'
 import { ChatMenu, type MenuAction } from './components/ChatMenu'
 import type { FileMeta } from './components/Composer'
@@ -239,6 +240,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   }, [loadChats, openChat])
 
   const stream = useEvents(onEvent, onResync)
+  useReading(selected !== null)
 
   const closeChat = useCallback(() => {
     selectedRef.current = null

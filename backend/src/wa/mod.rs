@@ -173,6 +173,11 @@ pub trait WhatsApp: Send + Sync {
   /// `@lid`, quando o servidor informa.
   async fn lookup_phone(&self, digits: &str) -> Result<Option<(String, Option<String>)>>;
 
+  /// Alguém está (ou deixou de estar) lendo uma conversa no app. Só nesse caso o
+  /// aparelho aparece online, para não silenciar as notificações do celular. O aviso
+  /// expira sozinho e precisa ser renovado.
+  fn set_reading(&self, reading: bool);
+
   /// Fecha a conexão e grava o estado pendente da sessão.
   async fn shutdown(&self);
 }

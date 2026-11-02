@@ -47,6 +47,25 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>
 }
 
+/**
+ * Avisa o servidor que alguém está (ou deixou de estar) lendo uma conversa aqui: só então
+ * ele aparece online e o celular deixa de vibrar. `keepalive` deixa o aviso sair mesmo
+ * com a aba fechando.
+ */
+export function sendReading(reading: boolean): void {
+  void fetch(`${API_URL}/api/presence`, {
+    method: 'POST',
+    keepalive: true,
+    headers: {
+      Authorization: `Bearer ${getToken() ?? ''}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reading }),
+  }).catch(() => {
+    // Sem aviso, o servidor volta a offline sozinho quando o último expira.
+  })
+}
+
 /** Imagem autenticada; `null` quando não existe (204/404). Outros erros lançam. */
 export async function fetchImage(path: string): Promise<Blob | null> {
   const res = await fetch(`${API_URL}${path}`, {
