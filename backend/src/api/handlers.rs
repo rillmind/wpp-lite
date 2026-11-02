@@ -196,6 +196,18 @@ pub async fn load_older(
   }))
 }
 
+#[derive(Deserialize)]
+pub struct PresenceBody {
+  reading: bool,
+}
+
+/// O app avisa que alguém está (ou deixou de estar) lendo nele. Renovado a cada
+/// poucos segundos enquanto vale; sem renovação, expira sozinho.
+pub async fn presence(State(st): State<AppState>, Json(body): Json<PresenceBody>) -> StatusCode {
+  st.wa.set_reading(body.reading);
+  StatusCode::NO_CONTENT
+}
+
 pub async fn mark_read(
   State(st): State<AppState>,
   Path(jid): Path<String>,

@@ -32,6 +32,7 @@ struct FakeWa {
   history_requests: Mutex<Vec<(String, u32)>>,
   /// Com QR: o "WhatsApp" está esperando o pareamento.
   qr: Option<String>,
+  reading: Mutex<Vec<bool>>,
 }
 
 #[async_trait]
@@ -159,6 +160,10 @@ impl WhatsApp for FakeWa {
       (digits == "5511999998888")
         .then(|| ("551199998888@s.whatsapp.net".into(), Some("77@lid".into()))),
     )
+  }
+
+  fn set_reading(&self, reading: bool) {
+    self.reading.lock().unwrap().push(reading);
   }
 
   async fn shutdown(&self) {}
@@ -1160,4 +1165,25 @@ async fn opens_chat_with_person_or_phone() {
   assert_eq!(body["error"], "esse número não tem WhatsApp");
   let (status, _) = call(&h, "GET", "/api/phones/12ab/chat", None).await;
   assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn presence_follows_the_app() {
+  let h = harness();
+  let (code, _) = call(
+    &h,
+    "POST",
+    "/api/presence",
+    Some(json!({ "reading": true })),
+  )
+  .await;
+  assert_eq!(code, StatusCode::NO_CONTENT);
+  call(
+    &h,
+    "POST",
+    "/api/presence",
+    Some(json!({ "reading": false })),
+  )
+  .await;
+  assert_eq!(*h.wa.reading.lock().unwrap(), vec![true, false]);
 }

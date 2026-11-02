@@ -5,10 +5,11 @@
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
-use tokio::sync::{mpsc, watch, Semaphore};
+use tokio::sync::{mpsc, watch, Notify, Semaphore};
 use whatsapp_rust::buffa;
 use whatsapp_rust::download::{DownloadParams, MediaType};
 use whatsapp_rust::http::HttpRequest;
@@ -54,6 +55,7 @@ pub struct RustWa {
   qr: Arc<Mutex<Option<String>>>,
   /// Canais assinados (jid → dados), buscados uma vez por execução.
   channels: tokio::sync::Mutex<Option<HashMap<String, Channel>>>,
+  presence: Arc<Presence>,
 }
 
 #[derive(Debug, Clone)]
@@ -76,12 +78,14 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
   let (state_tx, state_rx) = watch::channel(ConnState::Connecting);
   let state_tx = Arc::new(state_tx);
   let qr = Arc::new(Mutex::new(None));
+  let presence = Arc::new(Presence::default());
   let ctx = Arc::new(Translator {
     qr: Arc::clone(&qr),
     tx,
     state: state_tx,
     groups_named: Mutex::new(HashSet::new()),
     lids_seen: Mutex::new(HashSet::new()),
+    presence: Arc::clone(&presence),
   });
 
   let session = store.clone();
@@ -97,6 +101,7 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
 
   let client = bot.client();
   let handle = bot.spawn();
+  tokio::spawn(Arc::clone(&presence).run(Arc::clone(&client)));
   Ok(Arc::new(RustWa {
     client,
     handle: tokio::sync::Mutex::new(Some(handle)),
@@ -105,6 +110,7 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
     session,
     qr,
     channels: tokio::sync::Mutex::new(None),
+    presence,
   }))
 }
 
@@ -694,6 +700,10 @@ impl WhatsApp for RustWa {
     Ok(Some((pn, lid)))
   }
 
+  fn set_reading(&self, reading: bool) {
+    self.presence.set_reading(reading);
+  }
+
   async fn shutdown(&self) {
     if let Some(handle) = self.handle.lock().await.take() {
       handle.shutdown().await;
@@ -701,23 +711,72 @@ impl WhatsApp for RustWa {
   }
 }
 
-/// Desfaz o "online" que a biblioteca anuncia sozinha ao conectar.
+/// Quanto tempo um aviso de leitura do app vale sem ser renovado.
+const READING_TTL: Duration = Duration::from_secs(45);
+
+/// Decide quando o aparelho aparece online para o WhatsApp.
 ///
 /// Enquanto um aparelho conectado aparece online, o WhatsApp entrega as
-/// notificações ao celular sem som nem vibração, como se a pessoa já estivesse
-/// lendo em outro lugar. O servidor fica ligado o tempo todo, então anunciar
-/// online silenciaria o celular para sempre. Repete depois de alguns segundos
-/// porque o anúncio da biblioteca pode chegar logo depois do evento.
-fn stay_offline(client: &Arc<Client>) {
-  let client = client.clone();
-  tokio::spawn(async move {
-    for wait in [0, 3] {
-      tokio::time::sleep(std::time::Duration::from_secs(wait)).await;
-      if let Err(e) = client.presence().set_unavailable().await {
-        tracing::debug!(error = ?e, "não foi possível marcar o aparelho como offline");
+/// notificações ao celular sem som nem vibração (de todas as conversas), como se
+/// a pessoa já estivesse lendo em outro lugar. O servidor fica ligado o tempo
+/// todo, então só fica online enquanto o app avisa que alguém está lendo uma
+/// conversa nele. O aviso expira sozinho se o app sumir sem se despedir.
+#[derive(Default)]
+struct Presence {
+  /// Até quando alguém conta como lendo no app.
+  reading_until: Mutex<Option<Instant>>,
+  /// O que o WhatsApp sabe agora; `None` quando não se sabe (força o envio).
+  announced: Mutex<Option<bool>>,
+  wake: Notify,
+}
+
+impl Presence {
+  fn set_reading(&self, reading: bool) {
+    *lock(&self.reading_until) = reading.then(|| Instant::now() + READING_TTL);
+    self.wake.notify_one();
+  }
+
+  /// A biblioteca se anuncia online sozinha ao conectar e ao receber o próprio
+  /// nome, às vezes logo depois do evento; confere de novo em alguns segundos.
+  fn library_announced(self: &Arc<Self>) {
+    *lock(&self.announced) = None;
+    self.wake.notify_one();
+    let me = Arc::clone(self);
+    tokio::spawn(async move {
+      tokio::time::sleep(Duration::from_secs(3)).await;
+      *lock(&me.announced) = None;
+      me.wake.notify_one();
+    });
+  }
+
+  async fn run(self: Arc<Self>, client: Arc<Client>) {
+    loop {
+      let want = lock(&self.reading_until).is_some_and(|t| t > Instant::now());
+      let known = *lock(&self.announced);
+      if known != Some(want) && client.is_connected() {
+        let res = if want {
+          client.presence().set_available().await
+        } else {
+          client.presence().set_unavailable().await
+        };
+        match res {
+          Ok(()) => {
+            tracing::debug!(online = want, "presença enviada");
+            *lock(&self.announced) = Some(want);
+          }
+          Err(e) => tracing::debug!(error = ?e, "não foi possível enviar a presença"),
+        }
+      }
+      tokio::select! {
+        () = self.wake.notified() => {}
+        () = tokio::time::sleep(Duration::from_secs(5)) => {}
       }
     }
-  });
+  }
+}
+
+fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+  m.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// Converte eventos da biblioteca em [`WaEvent`].
@@ -730,6 +789,7 @@ struct Translator {
   groups_named: Mutex<HashSet<String>>,
   /// `@lid` cujo telefone já foi procurado nesta execução.
   lids_seen: Mutex<HashSet<String>>,
+  presence: Arc<Presence>,
 }
 
 impl Translator {
@@ -747,10 +807,10 @@ impl Translator {
           .collect();
         self.send(WaEvent::Me { jids }).await;
         self.set_state(ConnState::Connected).await;
-        stay_offline(client);
+        self.presence.library_announced();
       }
       // A biblioteca também se anuncia online ao receber o próprio nome.
-      Event::SelfPushNameUpdated(_) => stay_offline(client),
+      Event::SelfPushNameUpdated(_) => self.presence.library_announced(),
       Event::Disconnected(_) | Event::StreamError(_) | Event::ConnectFailure(_) => {
         self.set_state(ConnState::Disconnected).await
       }
