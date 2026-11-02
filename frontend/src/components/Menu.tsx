@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 export interface MenuItem {
   label: string
@@ -12,10 +12,12 @@ interface Props {
   y: number
   items: MenuItem[]
   onClose: () => void
+  /** Conteúdo antes dos itens (ex.: a barra de reações). */
+  header?: ReactNode
 }
 
 /** Menu flutuante do botão direito, preso dentro da tela. */
-export function Menu({ x, y, items, onClose }: Props) {
+export function Menu({ x, y, items, onClose, header }: Props) {
   const ref = useRef<HTMLUListElement>(null)
   const [pos, setPos] = useState({ left: x, top: y })
 
@@ -53,6 +55,7 @@ export function Menu({ x, y, items, onClose }: Props) {
 
   return (
     <ul ref={ref} className="menu" role="menu" style={pos} onContextMenu={(e) => e.preventDefault()}>
+      {header && <li role="none">{header}</li>}
       {items.map((it) => (
         <li key={it.label} role="none">
           <button

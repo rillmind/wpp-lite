@@ -1,5 +1,5 @@
 import { Fragment, useLayoutEffect, useRef, useState } from 'react'
-import type { Chat, Message } from '../api/types'
+import type { Chat, Message, Reaction } from '../api/types'
 import { Avatar } from './Avatar'
 import { Composer, type FileMeta } from './Composer'
 import { MediaView } from './MediaView'
@@ -7,6 +7,7 @@ import { MessageMenu, type MessagePick } from './MessageMenu'
 import { RichText } from './RichText'
 import {
   chatName,
+  formatPerson,
   formatPhone,
   formatTime,
   isReadOnly,
@@ -42,6 +43,8 @@ interface Props {
   replyTo: Message | null
   onCancelReply: () => void
   onMessagePick: (m: Message, pick: MessagePick) => void
+  /** Reagir (o mesmo emoji que já é seu tira a reação). */
+  onReact: (m: Message, emoji: string) => void
   /** Abre a conversa com uma pessoa (remetente ou marcada). */
   onOpenPerson: (jid: string) => void
   /** Abre a conversa com um telefone escrito na mensagem (só dígitos, com DDI). */
@@ -67,6 +70,36 @@ function startsRun(messages: Message[], i: number, firstUnreadId: string | null)
   return !prev || prev.from_me || prev.sender_jid !== m.sender_jid || m.id === firstUnreadId
 }
 
+/** Os emojis de reação agrupados, com quantas pessoas e quem (no título). */
+function Reactions({ reactions, onToggle }: { reactions: Reaction[]; onToggle?: (emoji: string) => void }) {
+  const groups = new Map<string, { names: string[]; mine: boolean }>()
+  for (const r of reactions) {
+    const g = groups.get(r.emoji) ?? { names: [], mine: false }
+    g.names.push(r.sender_jid === null ? 'Você' : r.sender_name ? formatPerson(r.sender_name) : 'Alguém')
+    g.mine ||= r.sender_jid === null
+    groups.set(r.emoji, g)
+  }
+  return (
+    <span className="reactions">
+      {[...groups].map(([emoji, g]) => (
+        <button
+          key={emoji}
+          type="button"
+          className="reaction"
+          aria-pressed={g.mine}
+          title={g.names.join(', ')}
+          disabled={!onToggle}
+          onClick={() => onToggle?.(emoji)}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          {emoji}
+          {g.names.length > 1 && <span className="reaction__count">{g.names.length}</span>}
+        </button>
+      ))}
+    </span>
+  )
+}
+
 const STATUS_ICON: Record<string, string> = { sent: '✓', delivered: '✓✓', read: '✓✓' }
 
 export function Conversation({
@@ -81,6 +114,7 @@ export function Conversation({
   replyTo,
   onCancelReply,
   onMessagePick,
+  onReact,
   onOpenPerson,
   onOpenPhone,
 }: Props) {
@@ -289,6 +323,9 @@ export function Conversation({
                     {m.kind === 'text' ? <RichText text={m.body ?? ''} mentions={m.mentions} onMention={onOpenPerson} onPhone={onOpenPhone} /> : messageText(m)}
                   </span>
                 )}
+                {m.reactions && m.reactions.length > 0 && (
+                  <Reactions reactions={m.reactions} onToggle={readOnly ? undefined : (e) => onReact(m, e)} />
+                )}
                 <span className="bubble__meta">
                   {m.starred && <span aria-label="Favoritada">★</span>}
                   {formatTime(m.ts)}
@@ -324,6 +361,7 @@ export function Conversation({
           y={menu.y}
           onClose={() => setMenu(null)}
           onPick={(pick) => onMessagePick(menu.m, pick)}
+          onReact={(emoji) => onReact(menu.m, emoji)}
         />
       )}
     </section>

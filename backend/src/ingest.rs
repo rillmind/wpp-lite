@@ -342,6 +342,32 @@ pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
         })
         .await?
     }
+    WaEvent::Reaction {
+      chat_jid,
+      msg_id,
+      sender_jid,
+      emoji,
+      ts_ms,
+    } => {
+      store
+        .run(move |db| {
+          // A reação pode vir pelo outro jid da conversa (@lid ou telefone).
+          let Some(chat) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
+          if !db.set_reaction(&chat, &msg_id, sender_jid.as_deref(), &emoji, ts_ms)? {
+            return Ok(vec![]);
+          }
+          // A prévia da lista não muda: só a mensagem.
+          Ok(
+            db.get_message(&chat, &msg_id)?
+              .map(ApiEvent::MessageUpdated)
+              .into_iter()
+              .collect(),
+          )
+        })
+        .await?
+    }
     WaEvent::Pinned {
       chat_jid,
       id,

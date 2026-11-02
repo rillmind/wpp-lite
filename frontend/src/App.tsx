@@ -446,6 +446,17 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     }
   }
 
+  /** Reage; o mesmo emoji que já é seu tira a reação. */
+  async function react(m: Message, emoji: string) {
+    const mine = m.reactions?.find((r) => r.sender_jid === null)?.emoji
+    try {
+      const updated = await api.react(m.chat_jid, m.id, mine === emoji ? '' : emoji)
+      if (updated) applyMessage(m.chat_jid, m.id, updated)
+    } catch (e) {
+      setNotice(fail(e))
+    }
+  }
+
   async function copy(text: string, what: string) {
     try {
       await copyText(text)
@@ -622,6 +633,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             replyTo={replyTo?.chat_jid === conv.jid ? replyTo : null}
             onCancelReply={() => setReplyTo(null)}
             onMessagePick={messagePick}
+            onReact={(m, emoji) => void react(m, emoji)}
             onOpenPerson={(jid) => void openPerson({ jid })}
             onOpenPhone={(phone) => void openPerson({ phone })}
           />

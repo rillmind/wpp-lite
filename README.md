@@ -71,6 +71,10 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   WhatsApp (as recebidas). Excluir e denunciar pedem confirmação. Tudo vale também no celular. A
   mensagem fixada aparece no topo da conversa e as favoritadas ganham uma estrela. Mensagens que a
   pessoa apaga para todos viram "Mensagem apagada" aqui também.
+- Reações: os emojis aparecem embaixo da mensagem, com quantas pessoas reagiram (passar o mouse
+  mostra quem). No topo do menu da mensagem ficam as reações rápidas (👍 ❤️ 😂 😮 😢 🙏); clicar num
+  emoji embaixo da mensagem reage com ele, e clicar de novo na sua reação a tira. Vale também no
+  celular e para quem mandou.
 - Ao abrir uma conversa, marca as mensagens como lidas (o contato vê os tiques azuis e o contador
   zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, no topo da lista,
   abrir não marca nada: só o botão "Marcar como lida" faz isso. O que você lê no celular também
