@@ -31,6 +31,10 @@ const MAX_VIDEO_BYTES: u64 = 100 * 1024 * 1024;
 /// Maior arquivo aceito para envio (o mesmo limite do WhatsApp para mídia).
 pub const MAX_UPLOAD_BYTES: usize = 100 * 1024 * 1024;
 const MAX_FILE_NAME_CHARS: usize = 200;
+const MIN_SEARCH_CHARS: usize = 2;
+const MAX_SEARCH_CHARS: usize = 100;
+const SEARCH_CHATS: usize = 20;
+const SEARCH_MESSAGES: u32 = 50;
 
 #[derive(Serialize)]
 pub struct StatusResponse {
@@ -194,6 +198,44 @@ pub async fn load_older(
     messages,
     requested,
   }))
+}
+
+#[derive(Deserialize)]
+pub struct SearchQuery {
+  q: String,
+}
+
+#[derive(Serialize)]
+pub struct SearchResponse {
+  chats: Vec<ChatSummary>,
+  messages: Vec<Message>,
+}
+
+/// Busca no banco local (nada vai ao WhatsApp): conversas pelo nome e mensagens pelo texto.
+pub async fn search(
+  State(st): State<AppState>,
+  Query(q): Query<SearchQuery>,
+) -> ApiResult<Json<SearchResponse>> {
+  let query = q.q.trim().to_string();
+  if query.chars().count() > MAX_SEARCH_CHARS {
+    return Err(ApiError::BadRequest("busca longa demais".into()));
+  }
+  if query.chars().count() < MIN_SEARCH_CHARS {
+    return Ok(Json(SearchResponse {
+      chats: vec![],
+      messages: vec![],
+    }));
+  }
+  let resp = st
+    .store
+    .run(move |db| {
+      Ok(SearchResponse {
+        chats: db.search_chats(&query, SEARCH_CHATS)?,
+        messages: db.search_messages(&query, SEARCH_MESSAGES)?,
+      })
+    })
+    .await?;
+  Ok(Json(resp))
 }
 
 #[derive(Deserialize)]

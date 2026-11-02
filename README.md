@@ -16,6 +16,9 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   pontinho mostra a conexão: verde conectado, amarelo conectando ou servidor desconectado, vermelho
   sessão encerrada; passar o mouse (ou tocar, no celular) mostra o texto. O botão de Status abre direto a conversa do Status. Status e
   canais são só de leitura: daqui não dá para postar um status nem escrever num canal.
+- Busca, no topo da lista, conversas pelo nome (ou número) e mensagens pelo texto, sem ligar para
+  maiúsculas nem acentos, em tudo o que já está guardado no servidor (não pergunta ao celular).
+  Clicar numa mensagem achada abre a conversa nela, piscando; Esc limpa a busca.
 - Mostra o nome de cada contato como está na agenda do seu celular; sem nome salvo, o nome que a
   pessoa definiu no WhatsApp; sem nenhum dos dois, o número. Em grupos, mostra quem mandou cada
   mensagem, cada pessoa numa cor (as 14 cores de destaque do Catppuccin, sorteadas ao abrir a
