@@ -45,6 +45,9 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   e não muda nada do que o WhatsApp manda para ele. Não notifica conversas silenciadas, status,
   canais nem a conversa que você está olhando; clicar abre a conversa. Só funciona pelo endereço
   HTTPS (por exemplo o do `tailscale serve`), não por `http://`.
+- Instala no celular como app (PWA): pelo endereço HTTPS, no Chrome do Android **⋮ → Instalar
+  app** (ou "Adicionar à tela inicial"), no iPhone **Compartilhar → Adicionar à Tela de Início**.
+  Abre em tela cheia, sem barra de endereço, com ícone próprio.
 - Envia imagens, vídeos e documentos: pelo clipe ao lado da caixa de mensagem ou colando
   (Ctrl+V) uma imagem ou arquivo copiado, como um print. Os arquivos aparecem antes de enviar (dá
   para tirar), o texto escrito vira a legenda do primeiro, e vão ao clicar em "Enviar". JPEG e PNG
