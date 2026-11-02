@@ -94,6 +94,9 @@ const enc = encodeURIComponent
 
 export const api = {
   chats: () => request<Chat[]>('/api/chats?limit=500'),
+  /** Busca local: conversas pelo nome e mensagens pelo texto (mais novas primeiro). */
+  search: (q: string, signal?: AbortSignal) =>
+    request<{ chats: Chat[]; messages: Message[] }>(`/api/search?q=${enc(q)}`, { signal }),
   messages: (jid: string, opts: { before?: number; limit?: number } = {}) => {
     const q = new URLSearchParams()
     if (opts.before != null) q.set('before', String(opts.before))

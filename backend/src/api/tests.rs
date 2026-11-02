@@ -1189,3 +1189,24 @@ async fn presence_follows_the_app() {
   .await;
   assert_eq!(*h.wa.reading.lock().unwrap(), vec![true, false]);
 }
+
+#[tokio::test]
+async fn search_finds_messages_and_needs_two_letters() {
+  let h = harness();
+  seed(&h, vec![incoming("1", 100, true), incoming("2", 200, true)]).await;
+  let (status, body) = call(&h, "GET", "/api/search?q=OI%202", None).await;
+  assert_eq!(status, StatusCode::OK);
+  let ids: Vec<&str> = body["messages"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .map(|m| m["id"].as_str().unwrap())
+    .collect();
+  assert_eq!(ids, ["2"]);
+  let (status, body) = call(&h, "GET", "/api/search?q=o", None).await;
+  assert_eq!(status, StatusCode::OK);
+  assert!(body["messages"].as_array().unwrap().is_empty());
+  let long = "a".repeat(101);
+  let (status, _) = call(&h, "GET", &format!("/api/search?q={long}"), None).await;
+  assert_eq!(status, StatusCode::BAD_REQUEST);
+}

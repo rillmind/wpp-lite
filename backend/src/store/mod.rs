@@ -67,6 +67,14 @@ impl Db {
     conn.pragma_update(None, "synchronous", "NORMAL")?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
     conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    // `fold(texto)`: minúsculas e sem acento, para a busca achar "acao" em "Ação".
+    conn.create_scalar_function(
+      "fold",
+      1,
+      rusqlite::functions::FunctionFlags::SQLITE_UTF8
+        | rusqlite::functions::FunctionFlags::SQLITE_DETERMINISTIC,
+      |ctx| Ok(ctx.get::<Option<String>>(0)?.map(|t| fold(&t))),
+    )?;
     let mut db = Db { conn };
     migrations::run(&mut db.conn)?;
     Ok(db)
@@ -801,6 +809,45 @@ impl Db {
     Ok(msgs)
   }
 
+  /// Conversas cujo nome (ou telefone, para números) contém `query`, sem ligar para
+  /// maiúsculas nem acentos. Mesma ordem da lista.
+  pub fn search_chats(&self, query: &str, limit: usize) -> Result<Vec<ChatSummary>> {
+    let needle = fold(query.trim());
+    let digits: String = needle.chars().filter(char::is_ascii_digit).collect();
+    // Só número (com espaço, traço, +): procura também no telefone.
+    let by_phone = digits.len() >= 3
+      && needle
+        .chars()
+        .all(|c| c.is_ascii_digit() || " +-()".contains(c));
+    let all = self.list_chats(u32::MAX, None)?;
+    Ok(
+      all
+        .into_iter()
+        .filter(|c| {
+          c.name.as_deref().is_some_and(|n| fold(n).contains(&needle))
+            || (by_phone && c.phone.as_deref().is_some_and(|p| p.contains(&digits)))
+        })
+        .take(limit)
+        .collect(),
+    )
+  }
+
+  /// Mensagens com `query` no texto (ou na legenda), da mais nova para a mais antiga,
+  /// sem ligar para maiúsculas nem acentos. Só as que aparecem na conversa.
+  pub fn search_messages(&self, query: &str, limit: u32) -> Result<Vec<Message>> {
+    let mut stmt = self.conn.prepare(&format!(
+      "{} WHERE m.hidden = 0 AND m.kind <> 'revoked' AND m.body IS NOT NULL
+         AND instr(fold(m.body), ?1) > 0
+       ORDER BY m.ts DESC, m.rowid DESC
+       LIMIT ?2",
+      msg_select()
+    ))?;
+    let rows = stmt.query_map(params![fold(query.trim()), limit], message_from_row)?;
+    let mut msgs = rows.collect::<rusqlite::Result<Vec<_>>>()?;
+    self.name_mentions(&mut msgs)?;
+    Ok(msgs)
+  }
+
   /// Primeira (mais antiga) mensagem recebida não lida.
   pub fn first_unread(&self, chat_jid: &str) -> Result<Option<Message>> {
     Ok(
@@ -941,6 +988,25 @@ fn msg_select() -> String {
      LEFT JOIN contacts sp ON sp.jid = sm.pn",
     sender_name_sql("m.sender_jid")
   )
+}
+
+/// Minúsculas e sem acento (letras latinas), para comparar na busca.
+pub fn fold(text: &str) -> String {
+  text
+    .chars()
+    .flat_map(char::to_lowercase)
+    .map(|c| match c {
+      'á' | 'à' | 'â' | 'ã' | 'ä' | 'å' => 'a',
+      'é' | 'è' | 'ê' | 'ë' => 'e',
+      'í' | 'ì' | 'î' | 'ï' => 'i',
+      'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+      'ú' | 'ù' | 'û' | 'ü' => 'u',
+      'ç' => 'c',
+      'ñ' => 'n',
+      'ý' | 'ÿ' => 'y',
+      other => other,
+    })
+    .collect()
 }
 
 /// Parte antes do `@` (os dígitos do telefone num jid `@s.whatsapp.net`).
