@@ -104,10 +104,10 @@ pub enum WaEvent {
   },
 }
 
-/// Arquivo para enviar (imagem, vídeo ou documento).
+/// Arquivo para enviar (imagem, vídeo, mensagem de voz ou documento).
 #[derive(Debug, Clone)]
 pub struct OutgoingMedia {
-  /// `Image`, `Video` ou `Doc`.
+  /// `Image`, `Video`, `Audio` (mensagem de voz) ou `Doc`.
   pub kind: crate::model::MessageKind,
   pub bytes: Vec<u8>,
   pub mimetype: String,
@@ -116,6 +116,10 @@ pub struct OutgoingMedia {
   pub width: Option<u32>,
   pub height: Option<u32>,
   pub seconds: Option<u32>,
+  /// Mensagem de voz (`Audio`): toca como gravada na hora, com a forma de onda.
+  pub voice: bool,
+  /// 64 valores de 0 a 100 (a forma de onda que o celular desenha na mensagem de voz).
+  pub waveform: Option<Vec<u8>>,
 }
 
 /// Referência a uma mensagem recebida, para recibo de leitura.

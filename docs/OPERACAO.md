@@ -44,7 +44,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `POST /api/chats/{jid}/send` | `{ "text": "...", "reply_to"? }`, uma mensagem por requisição; `reply_to` cita outra mensagem da conversa |
 | `POST /api/chats/{jid}/messages/{id}/action` | `{ "action": "star" \| "unstar" \| "pin" \| "unpin" \| "delete_me" \| "delete_all" \| "report", "days"? }` (`days` 1, 7 ou 30 em `pin`) |
 | `POST /api/chats/{jid}/messages/{id}/forward` | `{ "to": ["jid", …] }`, até 5 conversas |
-| `POST /api/chats/{jid}/send-media?name=&caption=&width=&height=&seconds=` | corpo = o arquivo, `Content-Type` = o tipo; até 100 MB. JPEG/PNG vão como imagem, MP4 como vídeo, o resto como documento |
+| `POST /api/chats/{jid}/send-media?name=&caption=&width=&height=&seconds=&voice=&waveform=` | corpo = o arquivo, `Content-Type` = o tipo; até 100 MB. JPEG/PNG vão como imagem, MP4 como vídeo, o resto como documento. Com `voice=true` (Ogg/Opus ou MP4) vai como mensagem de voz; `waveform` = 64 valores de 0 a 100 em hexadecimal |
 | `GET /api/events` | SSE: `message.new`, `message.status`, `message.updated`, `message.deleted`, `chat.updated`, `connection.state` (e `resync`) |
 
 Logs em nível `info` não têm conteúdo de mensagens.

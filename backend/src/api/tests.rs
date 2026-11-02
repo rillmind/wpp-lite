@@ -1189,3 +1189,42 @@ async fn presence_follows_the_app() {
   .await;
   assert_eq!(*h.wa.reading.lock().unwrap(), vec![true, false]);
 }
+
+#[tokio::test]
+async fn sends_voice_notes_as_audio() {
+  let h = harness();
+  let wave = "32".repeat(64);
+  let (status, body) = post_file(
+    &h,
+    &format!("/api/chats/{A}/send-media?voice=true&seconds=3&waveform={wave}"),
+    "audio/ogg;codecs=opus",
+    b"OggS...",
+  )
+  .await;
+  assert_eq!(status, StatusCode::OK, "{body}");
+  assert_eq!(body["kind"], "audio");
+  {
+    let up = h.wa.uploads.lock().unwrap();
+    assert!(up[0].voice);
+    assert_eq!(up[0].mimetype, "audio/ogg; codecs=opus");
+    assert_eq!(up[0].waveform.as_deref(), Some(&[50u8; 64][..]));
+    assert_eq!(up[0].seconds, Some(3));
+  }
+  // WebM o WhatsApp não toca como voz; forma de onda fora do formato também não passa.
+  let (status, _) = post_file(
+    &h,
+    &format!("/api/chats/{A}/send-media?voice=true"),
+    "audio/webm",
+    b"x",
+  )
+  .await;
+  assert_eq!(status, StatusCode::BAD_REQUEST);
+  let (status, _) = post_file(
+    &h,
+    &format!("/api/chats/{A}/send-media?voice=true&waveform=zz"),
+    "audio/ogg",
+    b"x",
+  )
+  .await;
+  assert_eq!(status, StatusCode::BAD_REQUEST);
+}

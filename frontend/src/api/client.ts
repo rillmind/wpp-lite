@@ -138,12 +138,22 @@ export const api = {
   /** Envia um arquivo; o tipo (imagem, vídeo ou documento) sai do `Content-Type`. */
   sendMedia: (
     jid: string,
-    file: File,
-    opts: { caption?: string | null; width?: number; height?: number; seconds?: number },
+    file: Blob,
+    opts: {
+      caption?: string | null
+      width?: number
+      height?: number
+      seconds?: number
+      /** Mensagem de voz gravada aqui (com a forma de onda em hexadecimal). */
+      voice?: boolean
+      waveform?: string | null
+    },
   ) => {
     const q = new URLSearchParams()
-    if (file.name) q.set('name', file.name)
+    if (file instanceof File && file.name) q.set('name', file.name)
     if (opts.caption) q.set('caption', opts.caption)
+    if (opts.voice) q.set('voice', 'true')
+    if (opts.voice && opts.waveform) q.set('waveform', opts.waveform)
     for (const k of ['width', 'height', 'seconds'] as const) {
       const v = opts[k]
       if (v) q.set(k, String(v))

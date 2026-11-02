@@ -766,6 +766,28 @@ pub struct SendMediaQuery {
   width: Option<u32>,
   height: Option<u32>,
   seconds: Option<u32>,
+  /// `true`: mensagem de voz gravada no app (Ogg/Opus, ou MP4 no Safari).
+  voice: Option<bool>,
+  /// Forma de onda da mensagem de voz: 64 valores de 0 a 100, em hexadecimal.
+  waveform: Option<String>,
+}
+
+/// Tipos aceitos como mensagem de voz.
+const VOICE_TYPES: &[&str] = &["audio/ogg", "audio/mp4"];
+const WAVEFORM_LEN: usize = 64;
+
+/// `"00ff10…"` → bytes; `None` se não for hexadecimal com 64 valores até 100.
+fn parse_waveform(hex: &str) -> Option<Vec<u8>> {
+  if hex.len() != WAVEFORM_LEN * 2 || !hex.is_ascii() {
+    return None;
+  }
+  (0..WAVEFORM_LEN)
+    .map(|i| {
+      u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16)
+        .ok()
+        .filter(|v| *v <= 100)
+    })
+    .collect()
 }
 
 /// Envia um arquivo: o corpo é o arquivo; `Content-Type` diz o tipo.
@@ -792,7 +814,29 @@ pub async fn send_media(
     .map(|v| v.trim().to_ascii_lowercase())
     .filter(|v| !v.is_empty())
     .unwrap_or_else(|| "application/octet-stream".into());
-  let kind = outgoing_kind(&mimetype);
+  let voice = q.voice.unwrap_or(false);
+  if voice && !VOICE_TYPES.contains(&mimetype.as_str()) {
+    return Err(ApiError::BadRequest(
+      "mensagem de voz precisa ser Ogg/Opus ou MP4".into(),
+    ));
+  }
+  let waveform = match q.waveform.as_deref() {
+    Some(hex) if voice => Some(
+      parse_waveform(hex).ok_or_else(|| ApiError::BadRequest("forma de onda inválida".into()))?,
+    ),
+    _ => None,
+  };
+  let kind = if voice {
+    MessageKind::Audio
+  } else {
+    outgoing_kind(&mimetype)
+  };
+  // O WhatsApp identifica a voz em Ogg pelo codec.
+  let mimetype = if voice && mimetype == "audio/ogg" {
+    "audio/ogg; codecs=opus".to_string()
+  } else {
+    mimetype
+  };
   let caption = q
     .caption
     .as_deref()
@@ -835,6 +879,8 @@ pub async fn send_media(
         width: q.width,
         height: q.height,
         seconds: q.seconds,
+        voice,
+        waveform,
       },
     )
     .await
