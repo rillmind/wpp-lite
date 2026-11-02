@@ -579,3 +579,62 @@ fn mention_everyone_counts_as_mentioning_me() {
   assert!(msgs[0].mentions[0].me);
   assert_eq!(msgs[0].mentions[0].name.as_deref(), Some("todos"));
 }
+
+#[test]
+fn archive_in_app_stays_and_phone_archive_comes_in() {
+  let db = db();
+  db.insert_message(&msg(LID, "1", 10, false, true)).unwrap();
+  db.set_lid_map(LID, PN).unwrap();
+  let archived = |db: &Db| db.get_chat(LID).unwrap().unwrap().archived;
+
+  // O celular cita a conversa pelo telefone: acha a do app (`@lid`).
+  assert_eq!(db.existing_chat(PN).unwrap().as_deref(), Some(LID));
+  assert_eq!(db.existing_chat("000@s.whatsapp.net").unwrap(), None);
+
+  // Arquivada no celular: aparece arquivada aqui.
+  db.set_phone_archived(LID, true).unwrap();
+  assert!(archived(&db));
+  // Desarquivada no app: fica desarquivada aqui, mesmo arquivada lá.
+  db.apply_action(LID, ChatAction::Archive(false)).unwrap();
+  assert!(!archived(&db));
+  // Arquivada de novo no celular: vale por cima da escolha do app.
+  db.set_phone_archived(LID, true).unwrap();
+  assert!(archived(&db));
+
+  // Arquivada no app: desarquivar no celular (ou mensagem nova lá) não desarquiva aqui.
+  db.set_phone_archived(LID, false).unwrap();
+  db.apply_action(LID, ChatAction::Archive(true)).unwrap();
+  db.set_phone_archived(LID, false).unwrap();
+  assert!(archived(&db));
+}
+
+#[test]
+fn deleted_on_phone_goes_away_but_keeps_newer_messages() {
+  let mut db = db();
+  db.insert_message(&msg(A, "1", 10, false, true)).unwrap();
+  db.insert_message(&msg(A, "2", 20, false, false)).unwrap();
+  // Apagada até a 2: some a conversa inteira.
+  assert!(db.clear_chat(A, 20, false, false).unwrap());
+  assert!(db.get_chat(A).unwrap().is_none());
+
+  // Apagada até a 1, mas a 2 chegou depois: a conversa fica, só com a 2.
+  db.insert_message(&msg(B, "1", 10, false, true)).unwrap();
+  db.insert_message(&msg(B, "2", 20, false, false)).unwrap();
+  assert!(!db.clear_chat(B, 10, false, false).unwrap());
+  let ids: Vec<String> = db
+    .last_messages(B, 10, None)
+    .unwrap()
+    .into_iter()
+    .map(|m| m.id)
+    .collect();
+  assert_eq!(ids, vec!["2".to_string()]);
+  assert_eq!(db.get_chat(B).unwrap().unwrap().unread_count, 1);
+
+  // Limpar mantém a conversa (e as favoritadas, se pedido).
+  db.set_starred(B, "2", true).unwrap();
+  assert!(!db.clear_chat(B, 99, true, true).unwrap());
+  assert_eq!(db.last_messages(B, 10, None).unwrap().len(), 1);
+  assert!(!db.clear_chat(B, 99, true, false).unwrap());
+  assert!(db.last_messages(B, 10, None).unwrap().is_empty());
+  assert!(db.get_chat(B).unwrap().is_some());
+}

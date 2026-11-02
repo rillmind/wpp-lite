@@ -24,6 +24,9 @@ pub enum ApiEvent {
   MessageDeleted { chat_jid: String, id: String },
   #[serde(rename = "chat.updated")]
   ChatUpdated(ChatSummary),
+  /// A conversa foi apagada no celular e saiu da lista.
+  #[serde(rename = "chat.deleted")]
+  ChatDeleted { jid: String },
   /// Chegaram mensagens antigas pedidas ao celular ("carregar mensagens").
   #[serde(rename = "history.loaded")]
   HistoryLoaded { chat_jid: String, count: usize },
@@ -40,6 +43,7 @@ impl ApiEvent {
       Self::MessageDeleted { .. } => "message.deleted",
       Self::ChatUpdated(_) => "chat.updated",
       Self::HistoryLoaded { .. } => "history.loaded",
+      Self::ChatDeleted { .. } => "chat.deleted",
       Self::ConnectionState { .. } => "connection.state",
     }
   }

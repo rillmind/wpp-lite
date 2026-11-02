@@ -265,6 +265,10 @@ pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
     WaEvent::ChatRead { chat_jid, read } => {
       store
         .run(move |db| {
+          // O celular pode citar a conversa pelo outro jid (`@lid` ou telefone).
+          let Some(chat_jid) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
           if read {
             db.mark_chat_read(&chat_jid)?;
           } else {
@@ -352,9 +356,43 @@ pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
         })
         .await?
     }
-    WaEvent::ChatMeta(meta) => {
+    WaEvent::ChatCleared {
+      chat_jid,
+      upto,
+      clear,
+      keep_starred,
+    } => {
       store
         .run(move |db| {
+          let Some(chat_jid) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
+          if db.clear_chat(&chat_jid, upto, clear, keep_starred)? {
+            Ok(vec![ApiEvent::ChatDeleted { jid: chat_jid }])
+          } else {
+            chat_updated(db, &chat_jid)
+          }
+        })
+        .await?
+    }
+    WaEvent::PhoneArchive { chat_jid, archived } => {
+      store
+        .run(move |db| {
+          let Some(chat_jid) = db.existing_chat(&chat_jid)? else {
+            return Ok(vec![]);
+          };
+          db.set_phone_archived(&chat_jid, archived)?;
+          chat_updated(db, &chat_jid)
+        })
+        .await?
+    }
+    WaEvent::ChatMeta(mut meta) => {
+      store
+        .run(move |db| {
+          // Mesma conversa com o outro jid: aplica nela em vez de criar outra.
+          if let Some(jid) = db.existing_chat(&meta.jid)? {
+            meta.jid = jid;
+          }
           db.upsert_chat(&meta)?;
           chat_updated(db, &meta.jid)
         })

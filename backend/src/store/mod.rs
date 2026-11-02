@@ -199,12 +199,13 @@ impl Db {
       ..Default::default()
     };
     match action {
+      // Só no app: não vai ao celular, e vale por cima do que vier de lá.
       ChatAction::Archive(archived) => {
-        meta.archived = Some(archived);
-        // O WhatsApp não deixa conversa arquivada fixada.
-        if archived {
-          meta.pinned = Some(false);
-        }
+        self.conn.execute(
+          "UPDATE chats SET archived_app = ?2 WHERE jid = ?1",
+          params![chat_jid, archived],
+        )?;
+        return Ok(());
       }
       ChatAction::Pin(pinned) => meta.pinned = Some(pinned),
       ChatAction::Mute(until) => meta.muted_until = Some(until.unwrap_or(-1)),
@@ -215,6 +216,84 @@ impl Db {
       }
     }
     self.upsert_chat(&meta)
+  }
+
+  /// Apaga as mensagens até `upto` (segundos). Apagar (`clear = false`) tira também a
+  /// conversa se não sobrar nada; limpar a mantém. Devolve `true` se a conversa saiu.
+  pub fn clear_chat(
+    &mut self,
+    chat_jid: &str,
+    upto: i64,
+    clear: bool,
+    keep_starred: bool,
+  ) -> Result<bool> {
+    let tx = self.conn.transaction()?;
+    let keep = if keep_starred { "AND starred = 0" } else { "" };
+    tx.execute(
+      &format!(
+        "DELETE FROM media WHERE chat_jid = ?1 AND msg_id IN
+           (SELECT id FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep})"
+      ),
+      params![chat_jid, upto],
+    )?;
+    tx.execute(
+      &format!("DELETE FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep}"),
+      params![chat_jid, upto],
+    )?;
+    let left: i64 = tx.query_row(
+      "SELECT COUNT(*) FROM messages WHERE chat_jid = ?1",
+      params![chat_jid],
+      |r| r.get(0),
+    )?;
+    let removed = !clear && left == 0;
+    if removed {
+      tx.execute("DELETE FROM chats WHERE jid = ?1", params![chat_jid])?;
+    } else {
+      // O que sobrou define contador e prévia.
+      tx.execute(
+        "UPDATE chats SET unread_count = (SELECT COUNT(*) FROM messages
+           WHERE chat_jid = ?1 AND from_me = 0 AND is_read = 0)
+         WHERE jid = ?1",
+        params![chat_jid],
+      )?;
+    }
+    tx.commit()?;
+    if !removed {
+      self.refresh_preview(chat_jid)?;
+    }
+    Ok(removed)
+  }
+
+  /// Arquivamento feito no celular. Arquivar lá vale também aqui (por cima da escolha do
+  /// app); desarquivar lá não mexe numa conversa arquivada aqui.
+  pub fn set_phone_archived(&self, chat_jid: &str, archived: bool) -> Result<()> {
+    self.conn.execute(
+      "UPDATE chats SET archived = ?2,
+         archived_app = CASE WHEN ?2 THEN NULL ELSE archived_app END
+       WHERE jid = ?1",
+      params![chat_jid, archived],
+    )?;
+    Ok(())
+  }
+
+  /// O chat do app para um jid vindo do WhatsApp: o próprio, se existe; senão o do outro
+  /// lado do mapa `@lid` <-> telefone (o celular nem sempre usa o mesmo); senão `None`.
+  pub fn existing_chat(&self, jid: &str) -> Result<Option<String>> {
+    Ok(
+      self
+        .conn
+        .query_row(
+          "SELECT jid FROM chats WHERE jid = ?1
+           UNION ALL
+           SELECT c.jid FROM lid_map m JOIN chats c ON c.jid = m.lid WHERE m.pn = ?1
+           UNION ALL
+           SELECT c.jid FROM lid_map m JOIN chats c ON c.jid = m.pn WHERE m.lid = ?1
+           LIMIT 1",
+          params![jid],
+          |r| r.get(0),
+        )
+        .optional()?,
+    )
   }
 
   pub fn set_unread(&self, chat_jid: &str, count: u32) -> Result<()> {
@@ -604,8 +683,8 @@ impl Db {
     let sql = CHAT_SELECT.replace(
       "FROM chats c",
       "FROM (SELECT ?1 AS jid, NULL AS name, 0 AS is_group, 0 AS unread_count,
-               NULL AS last_msg_ts, NULL AS last_msg_preview, 0 AS archived, 0 AS pinned,
-               NULL AS muted_until) c",
+               NULL AS last_msg_ts, NULL AS last_msg_preview, 0 AS archived,
+               NULL AS archived_app, 0 AS pinned, NULL AS muted_until) c",
     );
     Ok(self.conn.query_row(&sql, params![target], chat_from_row)?)
   }
@@ -820,7 +899,8 @@ const CHAT_SELECT: &str = "SELECT c.jid,
           ELSE COALESCE(pc.contact_name, dc.contact_name, dc.push_name, pc.push_name, c.name)
      END,
      COALESCE(lm.pn, CASE WHEN c.jid LIKE '%@s.whatsapp.net' THEN c.jid END),
-     c.is_group, c.unread_count, c.last_msg_ts, c.last_msg_preview, c.archived, c.pinned,
+     c.is_group, c.unread_count, c.last_msg_ts, c.last_msg_preview,
+     COALESCE(c.archived_app, c.archived), c.pinned,
      (SELECT CASE WHEN lm2.from_me THEN lm2.status END FROM messages lm2
        WHERE lm2.chat_jid = c.jid ORDER BY lm2.ts DESC, lm2.rowid DESC LIMIT 1),
      CASE WHEN c.is_group THEN

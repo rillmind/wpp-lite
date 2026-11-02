@@ -943,14 +943,46 @@ impl Translator {
             .await;
         }
       }
-      Event::ArchiveUpdate(u) => {
+      Event::DeleteChatUpdate(u) => {
+        let jid = u.jid.to_non_ad_string();
+        tracing::info!(kind = jid_kind(&jid), "conversa apagada no celular");
         self
-          .send(WaEvent::ChatMeta(ChatMeta {
-            jid: u.jid.to_non_ad_string(),
-            archived: u.action.archived,
-            ..Default::default()
-          }))
+          .send(WaEvent::ChatCleared {
+            chat_jid: jid,
+            upto: range_upto(u.action.message_range.as_option(), u.timestamp.timestamp()),
+            clear: false,
+            keep_starred: false,
+          })
           .await
+      }
+      Event::ClearChatUpdate(u) => {
+        let jid = u.jid.to_non_ad_string();
+        tracing::info!(kind = jid_kind(&jid), "conversa limpa no celular");
+        self
+          .send(WaEvent::ChatCleared {
+            chat_jid: jid,
+            upto: range_upto(u.action.message_range.as_option(), u.timestamp.timestamp()),
+            clear: true,
+            keep_starred: !u.delete_starred,
+          })
+          .await
+      }
+      Event::ArchiveUpdate(u) => {
+        let jid = u.jid.to_non_ad_string();
+        tracing::info!(
+          kind = jid_kind(&jid),
+          archived = ?u.action.archived,
+          full_sync = u.from_full_sync,
+          "arquivamento vindo do celular"
+        );
+        if let Some(archived) = u.action.archived {
+          self
+            .send(WaEvent::PhoneArchive {
+              chat_jid: jid,
+              archived,
+            })
+            .await
+        }
       }
       Event::MuteUpdate(u) => {
         let until = if u.action.muted == Some(true) {
@@ -1637,6 +1669,28 @@ fn has_visible_content(m: &wa::Message) -> bool {
     || m.poll_creation_message.is_set()
     || m.poll_creation_message_v3.is_set()
     || m.event_message.is_set()
+}
+
+/// Até quando apagar: a última mensagem citada pelo celular; sem ela, o momento da ação
+/// (nunca o que chegou depois).
+fn range_upto(
+  range: Option<&wa::sync_action_value::SyncActionMessageRange>,
+  action_secs: i64,
+) -> i64 {
+  range
+    .and_then(|r| r.last_message_timestamp)
+    .filter(|t| *t > 0)
+    .unwrap_or(action_secs)
+}
+
+/// Que tipo de jid é (para log, sem identificar ninguém).
+fn jid_kind(jid: &str) -> &'static str {
+  match jid.rsplit_once('@').map(|(_, s)| s) {
+    Some("lid") => "lid",
+    Some("s.whatsapp.net") => "telefone",
+    Some("g.us") => "grupo",
+    _ => "outro",
+  }
 }
 
 fn parse_jid(s: &str) -> Result<Jid> {
