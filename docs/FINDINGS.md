@@ -75,7 +75,9 @@ No sentido inverso (lido no celular), chegam `Event::MarkChatAsReadUpdate` (com 
 `Event::Receipt` do tipo `ReadSelf`; os dois atualizam o banco local. Abrir a conversa no celular
 só gera o `ReadSelf`. Em conversa individual ele vem com `from` = o nosso próprio jid e a conversa
 no atributo `recipient`, que a whatsapp-rust 0.7 não repassa (`MessageSource.recipient` fica
-vazio). Nesse caso a conversa é achada pelo id das mensagens.
+vazio). Por isso a conversa é sempre achada pelo id das mensagens (que também cobre a
+conversa guardada pelo telefone e o recibo vindo pelo `@lid`). O recibo pode citar só parte das
+mensagens; ler uma lê todas as anteriores da conversa.
 
 ## 5. Como enviar texto?
 

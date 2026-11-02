@@ -150,6 +150,21 @@ fn mark_messages_read_from_other_device() {
 }
 
 #[test]
+fn reading_on_phone_reads_everything_before() {
+  let mut db = db();
+  db.insert_message(&msg(A, "1", 100, false, false)).unwrap();
+  db.insert_message(&msg(A, "2", 200, false, false)).unwrap();
+  db.insert_message(&msg(A, "3", 300, false, false)).unwrap();
+  // O contador do WhatsApp inclui mensagens antigas que não estão guardadas aqui.
+  db.set_unread(A, 7).unwrap();
+  db.mark_messages_read(A, &["2".into()]).unwrap();
+  assert_eq!(db.get_chat(A).unwrap().unwrap().unread_count, 1);
+  assert_eq!(db.first_unread(A).unwrap().unwrap().id, "3");
+  db.mark_messages_read(A, &["3".into()]).unwrap();
+  assert_eq!(db.get_chat(A).unwrap().unwrap().unread_count, 0);
+}
+
+#[test]
 fn finds_chats_of_unread_ids() {
   let db = db();
   db.insert_message(&msg(A, "1", 100, false, false)).unwrap();

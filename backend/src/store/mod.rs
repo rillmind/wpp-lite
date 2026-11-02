@@ -251,21 +251,38 @@ impl Db {
   }
 
   /// Mensagens lidas em outro aparelho: marca como lidas e recalcula o contador.
+  ///
+  /// Ler uma mensagem no WhatsApp lê também tudo o que veio antes dela na conversa,
+  /// então marca até a mais nova citada no recibo. O contador passa a ser o das
+  /// mensagens que chegaram depois dela: as anteriores, guardadas aqui ou não, já
+  /// foram lidas.
   pub fn mark_messages_read(&mut self, chat_jid: &str, ids: &[String]) -> Result<()> {
     let tx = self.conn.transaction()?;
-    let mut changed = 0;
+    let mut upto: Option<i64> = None;
     for id in ids {
-      changed += tx.execute(
-        "UPDATE messages SET is_read = 1 WHERE chat_jid = ?1 AND id = ?2 AND is_read = 0",
-        params![chat_jid, id],
-      )?;
+      let ts: Option<i64> = tx
+        .query_row(
+          "SELECT ts FROM messages WHERE chat_jid = ?1 AND id = ?2",
+          params![chat_jid, id],
+          |r| r.get(0),
+        )
+        .optional()?;
+      upto = upto.max(ts);
     }
-    if changed > 0 {
-      tx.execute(
-        "UPDATE chats SET unread_count = MAX(unread_count - ?2, 0) WHERE jid = ?1",
-        params![chat_jid, changed as i64],
-      )?;
-    }
+    let Some(upto) = upto else {
+      return Ok(());
+    };
+    tx.execute(
+      "UPDATE messages SET is_read = 1 WHERE chat_jid = ?1 AND ts <= ?2 AND is_read = 0",
+      params![chat_jid, upto],
+    )?;
+    tx.execute(
+      "UPDATE chats SET unread_count = MIN(unread_count, (
+         SELECT COUNT(*) FROM messages
+         WHERE chat_jid = ?1 AND from_me = 0 AND is_read = 0 AND ts > ?2))
+       WHERE jid = ?1",
+      params![chat_jid, upto],
+    )?;
     tx.commit()?;
     Ok(())
   }
