@@ -60,6 +60,13 @@ function jumpTo(id: string) {
   setTimeout(() => el.classList.remove('bubble--flash'), 1200)
 }
 
+/** Primeira mensagem de uma sequência da mesma pessoa (o separador de não lidas corta). */
+function startsRun(messages: Message[], i: number, firstUnreadId: string | null): boolean {
+  const prev = messages[i - 1]
+  const m = messages[i]
+  return !prev || prev.from_me || prev.sender_jid !== m.sender_jid || m.id === firstUnreadId
+}
+
 const STATUS_ICON: Record<string, string> = { sent: '✓', delivered: '✓✓', read: '✓✓' }
 
 export function Conversation({
@@ -168,7 +175,7 @@ export function Conversation({
       )}
 
       <div
-        className="messages"
+        className={isGroup ? 'messages messages--group' : 'messages'}
         ref={scroller}
         onScroll={(e) => {
           const el = e.currentTarget
@@ -198,7 +205,7 @@ export function Conversation({
             {conv.error}
           </p>
         )}
-        {conv.messages.map((m) => (
+        {conv.messages.map((m, i) => (
           <Fragment key={m.id}>
             {m.id === conv.firstUnreadId && (
               <div className="unread-sep" role="separator">
@@ -218,6 +225,15 @@ export function Conversation({
                 if (e.detail > 1 && canReply(m)) e.preventDefault()
               }}
             >
+              {/* Grupo: foto de quem mandou na primeira mensagem de cada sequência dela;
+                  nas seguintes, só o espaço, para os balões ficarem alinhados. */}
+              {isGroup && !m.from_me && (
+                <span className="msg-row__avatar">
+                  {m.sender_jid && startsRun(conv.messages, i, conv.firstUnreadId) && (
+                    <Avatar jid={m.sender_jid} name={senderName(m)} size="xs" />
+                  )}
+                </span>
+              )}
               <div
                 id={`msg-${m.id}`}
                 className={[

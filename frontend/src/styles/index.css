@@ -363,6 +363,16 @@ code {
 .msg-row--out {
   justify-content: flex-end;
 }
+/* Em grupo a foto já faz a margem: a lateral esquerda fica curta. */
+.messages--group {
+  padding-left: 0.5rem;
+}
+/* Foto de quem mandou, em grupos (o espaço fica mesmo sem foto, para alinhar). */
+.msg-row__avatar {
+  flex: none;
+  width: 1.75rem;
+  margin-right: 0.4rem;
+}
 .bubble {
   display: flex;
   flex-direction: column;
@@ -676,6 +686,11 @@ code {
   width: 2.75rem;
   height: 2.75rem;
   font-size: 1rem;
+}
+.avatar--xs {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: 0.7rem;
 }
 .avatar--sm {
   width: 2.25rem;

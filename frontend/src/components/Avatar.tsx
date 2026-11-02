@@ -6,7 +6,7 @@ import { useInView } from '../api/useInView'
 interface Props {
   jid: string
   name: string
-  size?: 'md' | 'sm'
+  size?: 'md' | 'sm' | 'xs'
 }
 
 // Mesmas cores para o mesmo contato, da paleta Mocha.
