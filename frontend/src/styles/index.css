@@ -144,6 +144,14 @@ code {
   background: var(--bg-selected);
   color: var(--fg);
 }
+/* O sino mostra o estado pelo ícone (com ou sem traço) e pela cor, sem fundo. */
+.rail__btn--notify[aria-pressed='true'] {
+  background: transparent;
+  color: var(--accent);
+}
+.rail__btn--notify[aria-pressed='true']:hover {
+  background: var(--bg-hover);
+}
 .rail__badge {
   position: absolute;
   top: -2px;
