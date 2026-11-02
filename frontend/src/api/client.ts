@@ -94,6 +94,9 @@ const enc = encodeURIComponent
 
 export const api = {
   chats: () => request<Chat[]>('/api/chats?limit=500'),
+  /** Busca local: conversas pelo nome e mensagens pelo texto (mais novas primeiro). */
+  search: (q: string, signal?: AbortSignal) =>
+    request<{ chats: Chat[]; messages: Message[] }>(`/api/search?q=${enc(q)}`, { signal }),
   messages: (jid: string, opts: { before?: number; limit?: number } = {}) => {
     const q = new URLSearchParams()
     if (opts.before != null) q.set('before', String(opts.before))
@@ -127,6 +130,12 @@ export const api = {
     request<Message | null>(`/api/chats/${enc(jid)}/messages/${enc(id)}/action`, {
       method: 'POST',
       body: JSON.stringify(days ? { action, days } : { action }),
+    }),
+  /** Reage com `emoji`; vazio tira a reação. */
+  react: (jid: string, id: string, emoji: string) =>
+    request<Message | null>(`/api/chats/${enc(jid)}/messages/${enc(id)}/react`, {
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
     }),
   forward: (jid: string, id: string, to: string[]) =>
     request<Message[]>(`/api/chats/${enc(jid)}/messages/${enc(id)}/forward`, {

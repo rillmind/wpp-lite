@@ -36,6 +36,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `GET /api/pairing` | sem token; `{ state, qr_svg }`, com o QR só enquanto não há celular pareado |
 | `GET /api/status` | `{ state, connected }` |
 | `GET /api/chats?limit=&before_ts=` | conversas por atividade, com `name` e `phone` |
+| `GET /api/search?q=` | busca local (2 a 100 caracteres, sem maiúsculas/acentos): `{ chats, messages }`, até 20 conversas pelo nome/telefone e 50 mensagens pelo texto, mais novas primeiro |
 | `GET /api/chats/{jid}/messages?limit=&before=` | últimas mensagens do banco local + `first_unread_id`; a primeira página sempre inclui todas as não lidas. Mensagens com imagem/figurinha trazem `media` |
 | `GET /api/chats/{jid}/messages/{id}/media` | baixa a imagem, figurinha, vídeo, áudio ou documento do WhatsApp na hora (`Cache-Control: no-store`; documento sempre como anexo; até 32 MB, vídeo até 100 MB) |
 | `GET /api/chats/{jid}/avatar` | foto de perfil, buscada na hora; `204` se não houver |
@@ -43,6 +44,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread", "hours"? }` (`hours` só em `mute`; sem ele, para sempre). `archive`/`unarchive` ficam só no app |
 | `POST /api/chats/{jid}/send` | `{ "text": "...", "reply_to"? }`, uma mensagem por requisição; `reply_to` cita outra mensagem da conversa |
 | `POST /api/chats/{jid}/messages/{id}/action` | `{ "action": "star" \| "unstar" \| "pin" \| "unpin" \| "delete_me" \| "delete_all" \| "report", "days"? }` (`days` 1, 7 ou 30 em `pin`) |
+| `POST /api/chats/{jid}/messages/{id}/react` | `{ "emoji": "👍" }`; vazio tira a reação. Manda ao WhatsApp e devolve a mensagem com `reactions` (uma por pessoa; `sender_jid: null` = você) |
 | `POST /api/chats/{jid}/messages/{id}/forward` | `{ "to": ["jid", …] }`, até 5 conversas |
 | `POST /api/chats/{jid}/send-media?name=&caption=&width=&height=&seconds=&voice=&waveform=` | corpo = o arquivo, `Content-Type` = o tipo; até 100 MB. JPEG/PNG vão como imagem, MP4 como vídeo, o resto como documento. Com `voice=true` (Ogg/Opus ou MP4) vai como mensagem de voz; `waveform` = 64 valores de 0 a 100 em hexadecimal |
 | `GET /api/events` | SSE: `message.new`, `message.status`, `message.updated`, `message.deleted`, `chat.updated`, `connection.state` (e `resync`) |

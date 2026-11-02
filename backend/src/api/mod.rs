@@ -50,6 +50,7 @@ pub fn router(
   let api = Router::new()
     .route("/api/status", get(handlers::status))
     .route("/api/chats", get(handlers::list_chats))
+    .route("/api/search", get(handlers::search))
     .route("/api/chats/{jid}/messages", get(handlers::messages))
     .route("/api/chats/{jid}/load-older", post(handlers::load_older))
     .route("/api/chats/{jid}/read", post(handlers::mark_read))
@@ -64,6 +65,10 @@ pub fn router(
     .route(
       "/api/chats/{jid}/messages/{id}/action",
       post(handlers::message_action),
+    )
+    .route(
+      "/api/chats/{jid}/messages/{id}/react",
+      post(handlers::react),
     )
     .route(
       "/api/chats/{jid}/messages/{id}/forward",

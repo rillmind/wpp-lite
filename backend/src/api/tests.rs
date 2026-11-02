@@ -33,6 +33,7 @@ struct FakeWa {
   /// Com QR: o "WhatsApp" está esperando o pareamento.
   qr: Option<String>,
   reading: Mutex<Vec<bool>>,
+  reactions: Mutex<Vec<(String, String)>>,
 }
 
 #[async_trait]
@@ -94,6 +95,15 @@ impl WhatsApp for FakeWa {
       .lock()
       .unwrap()
       .push((msg.id.clone(), action));
+    Ok(())
+  }
+
+  async fn react(&self, msg: &Message, emoji: &str) -> Result<()> {
+    self
+      .reactions
+      .lock()
+      .unwrap()
+      .push((msg.id.clone(), emoji.into()));
     Ok(())
   }
 
@@ -220,6 +230,7 @@ fn incoming(id: &str, ts: i64, is_read: bool) -> Message {
     starred: false,
     pinned: false,
     mentions: vec![],
+    reactions: vec![],
   }
 }
 
@@ -1188,6 +1199,70 @@ async fn presence_follows_the_app() {
   )
   .await;
   assert_eq!(*h.wa.reading.lock().unwrap(), vec![true, false]);
+}
+
+#[tokio::test]
+async fn search_finds_messages_and_needs_two_letters() {
+  let h = harness();
+  seed(&h, vec![incoming("1", 100, true), incoming("2", 200, true)]).await;
+  let (status, body) = call(&h, "GET", "/api/search?q=OI%202", None).await;
+  assert_eq!(status, StatusCode::OK);
+  let ids: Vec<&str> = body["messages"]
+    .as_array()
+    .unwrap()
+    .iter()
+    .map(|m| m["id"].as_str().unwrap())
+    .collect();
+  assert_eq!(ids, ["2"]);
+  let (status, body) = call(&h, "GET", "/api/search?q=o", None).await;
+  assert_eq!(status, StatusCode::OK);
+  assert!(body["messages"].as_array().unwrap().is_empty());
+  let long = "a".repeat(101);
+  let (status, _) = call(&h, "GET", &format!("/api/search?q={long}"), None).await;
+  assert_eq!(status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn react_goes_to_whatsapp_then_shows_on_the_message() {
+  let h = harness();
+  seed(&h, vec![incoming("1", 100, true)]).await;
+  let (status, body) = call(
+    &h,
+    "POST",
+    &format!("/api/chats/{A}/messages/1/react"),
+    Some(json!({ "emoji": "👍" })),
+  )
+  .await;
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(body["reactions"][0]["emoji"], "👍");
+  assert_eq!(body["reactions"][0]["sender_jid"], Value::Null);
+  let (status, body) = call(
+    &h,
+    "POST",
+    &format!("/api/chats/{A}/messages/1/react"),
+    Some(json!({ "emoji": "" })),
+  )
+  .await;
+  assert_eq!(status, StatusCode::OK);
+  assert!(
+    body.get("reactions").is_none(),
+    "sem reação não manda a lista"
+  );
+  assert_eq!(
+    *h.wa.reactions.lock().unwrap(),
+    [
+      ("1".to_string(), "👍".to_string()),
+      ("1".to_string(), String::new())
+    ]
+  );
+  let (status, _) = call(
+    &h,
+    "POST",
+    &format!("/api/chats/{A}/messages/1/react"),
+    Some(json!({ "emoji": "oi" })),
+  )
+  .await;
+  assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
 #[tokio::test]

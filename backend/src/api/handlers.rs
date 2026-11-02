@@ -31,6 +31,10 @@ const MAX_VIDEO_BYTES: u64 = 100 * 1024 * 1024;
 /// Maior arquivo aceito para envio (o mesmo limite do WhatsApp para mídia).
 pub const MAX_UPLOAD_BYTES: usize = 100 * 1024 * 1024;
 const MAX_FILE_NAME_CHARS: usize = 200;
+const MIN_SEARCH_CHARS: usize = 2;
+const MAX_SEARCH_CHARS: usize = 100;
+const SEARCH_CHATS: usize = 20;
+const SEARCH_MESSAGES: u32 = 50;
 
 #[derive(Serialize)]
 pub struct StatusResponse {
@@ -194,6 +198,44 @@ pub async fn load_older(
     messages,
     requested,
   }))
+}
+
+#[derive(Deserialize)]
+pub struct SearchQuery {
+  q: String,
+}
+
+#[derive(Serialize)]
+pub struct SearchResponse {
+  chats: Vec<ChatSummary>,
+  messages: Vec<Message>,
+}
+
+/// Busca no banco local (nada vai ao WhatsApp): conversas pelo nome e mensagens pelo texto.
+pub async fn search(
+  State(st): State<AppState>,
+  Query(q): Query<SearchQuery>,
+) -> ApiResult<Json<SearchResponse>> {
+  let query = q.q.trim().to_string();
+  if query.chars().count() > MAX_SEARCH_CHARS {
+    return Err(ApiError::BadRequest("busca longa demais".into()));
+  }
+  if query.chars().count() < MIN_SEARCH_CHARS {
+    return Ok(Json(SearchResponse {
+      chats: vec![],
+      messages: vec![],
+    }));
+  }
+  let resp = st
+    .store
+    .run(move |db| {
+      Ok(SearchResponse {
+        chats: db.search_chats(&query, SEARCH_CHATS)?,
+        messages: db.search_messages(&query, SEARCH_MESSAGES)?,
+      })
+    })
+    .await?;
+  Ok(Json(resp))
 }
 
 #[derive(Deserialize)]
@@ -425,6 +467,7 @@ pub async fn send(
     starred: false,
     pinned: false,
     mentions: vec![],
+    reactions: vec![],
   };
   let m = msg.clone();
   let chat = st
@@ -668,6 +711,62 @@ pub async fn message_action(
 }
 
 #[derive(Deserialize)]
+pub struct ReactBody {
+  /// Um emoji; vazio tira a reação.
+  emoji: String,
+}
+
+/// Mais que isso não é um emoji (os compostos, como famílias e bandeiras, cabem).
+const MAX_EMOJI_CHARS: usize = 16;
+
+/// Reage a uma mensagem (também no celular e para quem mandou), ou tira a reação.
+pub async fn react(
+  State(st): State<AppState>,
+  Path((jid, id)): Path<(String, String)>,
+  Json(body): Json<ReactBody>,
+) -> ApiResult<Json<Option<Message>>> {
+  validate_jid(&jid)?;
+  validate_msg_id(&id)?;
+  let emoji = body.emoji.trim().to_string();
+  if emoji.chars().count() > MAX_EMOJI_CHARS || emoji.chars().any(char::is_alphanumeric) {
+    return Err(ApiError::BadRequest("reação deve ser um emoji".into()));
+  }
+  if is_read_only(&jid) {
+    return Err(ApiError::BadRequest(
+      "status e canais são só de leitura aqui".into(),
+    ));
+  }
+  let (j, i) = (jid.clone(), id.clone());
+  let msg = st
+    .store
+    .run(move |db| db.get_message(&j, &i))
+    .await?
+    .ok_or(ApiError::NotFound)?;
+  if msg.kind == MessageKind::Revoked {
+    return Err(ApiError::BadRequest("mensagem apagada".into()));
+  }
+  ensure_connected(&st)?;
+  if !st.limiter.try_acquire() {
+    return Err(ApiError::RateLimited);
+  }
+  st.wa
+    .react(&msg, &emoji)
+    .await
+    .map_err(ApiError::Upstream)?;
+  let updated = st
+    .store
+    .run(move |db| {
+      db.set_reaction(&jid, &id, None, &emoji, now_ms())?;
+      db.get_message(&jid, &id)
+    })
+    .await?;
+  if let Some(m) = &updated {
+    let _ = st.events.send(ApiEvent::MessageUpdated(m.clone()));
+  }
+  Ok(Json(updated))
+}
+
+#[derive(Deserialize)]
 pub struct ForwardBody {
   /// Conversas de destino (até 5, como no WhatsApp).
   to: Vec<String>,
@@ -737,6 +836,7 @@ pub async fn forward(
       starred: false,
       pinned: false,
       mentions: vec![],
+      reactions: vec![],
     };
     let (c, m) = (copy.clone(), media.clone());
     let chat = st
@@ -906,6 +1006,7 @@ pub async fn send_media(
     starred: false,
     pinned: false,
     mentions: vec![],
+    reactions: vec![],
   };
   let m = msg.clone();
   let chat = st
