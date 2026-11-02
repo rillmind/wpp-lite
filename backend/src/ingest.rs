@@ -250,15 +250,11 @@ pub async fn apply(store: &Store, ev: WaEvent) -> Result<Vec<ApiEvent>> {
         })
         .await?
     }
-    WaEvent::ReadElsewhere { chat_jid, ids } => {
+    WaEvent::ReadElsewhere { ids } => {
       store
         .run(move |db| {
-          let chats = match chat_jid {
-            Some(jid) => vec![jid],
-            None => db.chats_with_unread_ids(&ids)?,
-          };
           let mut out = Vec::new();
-          for jid in chats {
+          for jid in db.chats_with_unread_ids(&ids)? {
             db.mark_messages_read(&jid, &ids)?;
             out.extend(chat_updated(db, &jid)?);
           }
