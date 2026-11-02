@@ -40,6 +40,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   selecionada (em telas de toque não, para não abrir o teclado). O Esc vai um passo por vez:
   fecha a imagem ampliada, desmarca a mensagem marcada para responder, tira o cursor da caixa de
   mensagem e, por fim, fecha a conversa e volta à tela inicial.
+- Atalhos de teclado: **Ctrl+K** (⌘K no Mac) vai para a busca; **Alt+↑** e **Alt+↓** abrem a
+  conversa de cima ou de baixo na lista da seção aberta.
 - Notificações no navegador (o sino na barra lateral), com a aba aberta, mesmo em segundo
   plano. O celular continua tocando e vibrando normalmente: a notificação do app vem logo depois
   e não muda nada do que o WhatsApp manda para ele. Não notifica conversas silenciadas, arquivadas,
