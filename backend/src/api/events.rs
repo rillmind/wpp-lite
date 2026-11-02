@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use crate::model::{ConnState, Message, MsgStatus};
+use crate::model::{ConnState, Message, MsgStatus, Typing};
 use crate::store::ChatSummary;
 
 #[derive(Debug, Clone, Serialize)]
@@ -32,6 +32,22 @@ pub enum ApiEvent {
   HistoryLoaded { chat_jid: String, count: usize },
   #[serde(rename = "connection.state")]
   ConnectionState { state: ConnState },
+  /// Alguém está digitando ou gravando (`typing`), ou parou (`null`).
+  #[serde(rename = "chat.typing")]
+  Typing {
+    chat_jid: String,
+    sender_jid: String,
+    /// Em grupos: quem ("Carlos", "+55…").
+    sender_name: Option<String>,
+    typing: Option<Typing>,
+  },
+  /// A pessoa da conversa ficou online ou offline.
+  #[serde(rename = "chat.presence")]
+  Presence {
+    chat_jid: String,
+    online: bool,
+    last_seen: Option<i64>,
+  },
 }
 
 impl ApiEvent {
@@ -45,6 +61,8 @@ impl ApiEvent {
       Self::HistoryLoaded { .. } => "history.loaded",
       Self::ChatDeleted { .. } => "chat.deleted",
       Self::ConnectionState { .. } => "connection.state",
+      Self::Typing { .. } => "chat.typing",
+      Self::Presence { .. } => "chat.presence",
     }
   }
 }

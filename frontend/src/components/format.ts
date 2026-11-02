@@ -1,4 +1,4 @@
-import type { Chat, Mention, Message } from '../api/types'
+import type { Chat, Live, Mention, Message } from '../api/types'
 
 const PLACEHOLDER: Record<string, string> = {
   image: '[imagem]',
@@ -265,4 +265,27 @@ export function shuffledPalette(): number[] {
     ;[order[i], order[j]] = [order[j], order[i]]
   }
   return order
+}
+
+/** "digitando…", "Ana está gravando áudio…", "online", "visto por último hoje às 14:03". */
+export function liveText(live: Live | undefined): string | null {
+  if (!live) return null
+  if (live.typing) {
+    const what = live.typing.kind === 'audio' ? 'gravando áudio…' : 'digitando…'
+    return live.typing.who ? `${formatPerson(live.typing.who)} está ${what}` : what
+  }
+  if (live.online) return 'online'
+  if (live.lastSeen) {
+    const d = new Date(live.lastSeen * 1000)
+    const today = new Date()
+    const yesterday = new Date(today.getTime() - 86_400_000)
+    const when =
+      d.toDateString() === today.toDateString()
+        ? 'hoje'
+        : d.toDateString() === yesterday.toDateString()
+          ? 'ontem'
+          : `em ${day.format(d)}`
+    return `visto por último ${when} às ${time.format(d)}`
+  }
+  return null
 }

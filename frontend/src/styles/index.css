@@ -1126,3 +1126,9 @@ code {
   color: var(--ctp-crust);
   background: var(--ctp-red);
 }
+
+/* "digitando…" no topo da conversa e na lista */
+.topbar__sub--typing,
+.chat-item__typing {
+  color: var(--ok);
+}

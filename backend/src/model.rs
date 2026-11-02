@@ -79,6 +79,16 @@ impl MsgStatus {
   }
 }
 
+/// O que a pessoa está fazendo na conversa agora.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Typing {
+  /// Digitando.
+  Text,
+  /// Gravando áudio.
+  Audio,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConnState {

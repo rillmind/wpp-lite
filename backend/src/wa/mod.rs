@@ -11,6 +11,7 @@ use async_trait::async_trait;
 
 use crate::model::{
   ChatAction, ChatMeta, ConnState, Contact, MediaRef, Message, MessageAction, MsgStatus, Quote,
+  Typing,
 };
 
 pub use qr::svg as qr_svg;
@@ -39,6 +40,20 @@ pub enum WaEvent {
     chat_jid: String,
     id: String,
     starred: bool,
+  },
+  /// Alguém começou (`Some`) ou parou (`None`) de digitar ou gravar áudio. Não é gravado.
+  Typing {
+    chat_jid: String,
+    /// Quem (em grupos é diferente da conversa).
+    sender_jid: String,
+    typing: Option<Typing>,
+  },
+  /// Uma pessoa ficou online ou offline (só das conversas que estamos acompanhando).
+  Presence {
+    jid: String,
+    online: bool,
+    /// Visto por último (segundos), quando ela deixa mostrar.
+    last_seen: Option<i64>,
   },
   /// Mensagem fixada (até `until_ms`) ou desafixada (`None`).
   Pinned {
@@ -185,6 +200,10 @@ pub trait WhatsApp: Send + Sync {
   /// o jid de telefone que o WhatsApp usa (pode diferir do digitado, como o 9 a mais) e o
   /// `@lid`, quando o servidor informa.
   async fn lookup_phone(&self, digits: &str) -> Result<Option<(String, Option<String>)>>;
+
+  /// Passa a receber "online" e "digitando…" desta conversa individual (deixa de
+  /// acompanhar a anterior). Só o que os outros fazem: o nosso "digitando" nunca é enviado.
+  async fn watch_presence(&self, chat_jid: &str) -> Result<()>;
 
   /// Alguém está (ou deixou de estar) lendo uma conversa no app. Só nesse caso o
   /// aparelho aparece online, para não silenciar as notificações do celular. O aviso

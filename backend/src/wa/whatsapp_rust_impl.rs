@@ -32,7 +32,7 @@ use whatsapp_rust::MexRequest;
 use super::{qr, OutgoingMedia, Sent, UnreadRef, WaEvent, WhatsApp};
 use crate::model::{
   ChatAction, ChatMeta, ConnState, Contact, MediaRef, Mention, Message, MessageAction, MessageKind,
-  MsgStatus, Quote,
+  MsgStatus, Quote, Typing,
 };
 
 pub struct WaOptions {
@@ -56,6 +56,8 @@ pub struct RustWa {
   /// Canais assinados (jid → dados), buscados uma vez por execução.
   channels: tokio::sync::Mutex<Option<HashMap<String, Channel>>>,
   presence: Arc<Presence>,
+  /// Conversa individual cujo "online" e "digitando…" estamos acompanhando.
+  watching: tokio::sync::Mutex<Option<Jid>>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +113,7 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
     qr,
     channels: tokio::sync::Mutex::new(None),
     presence,
+    watching: tokio::sync::Mutex::new(None),
   }))
 }
 
@@ -700,6 +703,22 @@ impl WhatsApp for RustWa {
     Ok(Some((pn, lid)))
   }
 
+  async fn watch_presence(&self, chat_jid: &str) -> Result<()> {
+    let jid = parse_jid(chat_jid)?;
+    if jid.is_group() || jid.is_status_broadcast() || jid.is_newsletter() {
+      return Ok(());
+    }
+    let presence = self.client.presence();
+    let previous = self.watching.lock().await.replace(jid.clone());
+    if let Some(old) = previous.filter(|old| *old != jid) {
+      // Só uma conversa acompanhada por vez: a aberta no app.
+      if let Err(e) = presence.unsubscribe(&old).await {
+        tracing::debug!(error = %e, "falha ao deixar de acompanhar presença");
+      }
+    }
+    presence.subscribe(jid).await.map_err(|e| anyhow!("{e}"))
+  }
+
   fn set_reading(&self, reading: bool) {
     self.presence.set_reading(reading);
   }
@@ -1056,6 +1075,33 @@ impl Translator {
         }
       }
       Event::HistorySync(lazy) => self.handle_history(lazy).await,
+      Event::ChatPresence(u) => {
+        use whatsapp_rust::wacore::types::presence::{ChatPresence, ChatPresenceMedia};
+        if u.source.is_from_me {
+          return;
+        }
+        let typing = match (u.state, u.media) {
+          (ChatPresence::Composing, ChatPresenceMedia::Audio) => Some(Typing::Audio),
+          (ChatPresence::Composing, _) => Some(Typing::Text),
+          (ChatPresence::Paused, _) => None,
+        };
+        self
+          .send(WaEvent::Typing {
+            chat_jid: u.source.chat.to_non_ad_string(),
+            sender_jid: u.source.sender.to_non_ad_string(),
+            typing,
+          })
+          .await
+      }
+      Event::Presence(p) => {
+        self
+          .send(WaEvent::Presence {
+            jid: p.from.to_non_ad_string(),
+            online: !p.unavailable,
+            last_seen: p.last_seen.map(|t| t.timestamp()),
+          })
+          .await
+      }
       _ => {}
     }
   }

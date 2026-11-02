@@ -110,6 +110,12 @@ export const api = {
   personChat: (jid: string) => request<Chat>(`/api/people/${enc(jid)}/chat`),
   /** Conversa com um telefone (só dígitos, com DDI); erro se o número não tem WhatsApp. */
   phoneChat: (digits: string) => request<Chat>(`/api/phones/${enc(digits)}/chat`),
+  /** Passa a receber "online" e "digitando…" desta conversa (a aberta). */
+  watch: (jid: string) =>
+    fetch(`${API_URL}/api/chats/${enc(jid)}/watch`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${getToken() ?? ''}` },
+    }).then(() => undefined),
   markRead: (jid: string) => request<Chat>(`/api/chats/${enc(jid)}/read`, { method: 'POST' }),
   /** Arquiva, fixa, silencia (por `hours`, ou para sempre) ou marca como não lida. */
   action: (jid: string, action: string, hours?: number) =>

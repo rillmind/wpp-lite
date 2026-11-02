@@ -1,6 +1,6 @@
-import type { Chat, MsgStatus } from '../api/types'
+import type { Chat, Live, MsgStatus } from '../api/types'
 import { Avatar } from './Avatar'
-import { chatName, formatListTime, formatPerson } from './format'
+import { chatName, formatListTime, formatPerson, liveText } from './format'
 
 const TICK_LABEL: Record<MsgStatus, string> = { sent: 'enviada', delivered: 'entregue', read: 'lida' }
 
@@ -10,9 +10,11 @@ interface Props {
   onSelect: (jid: string) => void
   /** Botão direito (ou toque longo) numa conversa. */
   onMenu: (chat: Chat, x: number, y: number) => void
+  /** "digitando…" por conversa. */
+  live: Record<string, Live>
 }
 
-export function ChatList({ chats, selected, onSelect, onMenu }: Props) {
+export function ChatList({ chats, selected, onSelect, onMenu, live }: Props) {
   if (chats.length === 0) {
     return <p className="empty">Nenhuma conversa ainda. Elas aparecem aqui assim que chegarem.</p>
   }
@@ -39,18 +41,22 @@ export function ChatList({ chats, selected, onSelect, onMenu }: Props) {
                 </span>
               </span>
               <span className="chat-item__bottom">
-                <span className="chat-item__preview">
-                  {c.last_status && (
-                    <span
-                      className={c.last_status === 'read' ? 'chat-item__tick chat-item__tick--read' : 'chat-item__tick'}
-                      aria-label={TICK_LABEL[c.last_status]}
-                    >
-                      {c.last_status === 'sent' ? '✓' : '✓✓'}
-                    </span>
-                  )}
-                  {c.last_sender && c.last_msg_preview && `${formatPerson(c.last_sender)}: `}
-                  {c.last_msg_preview ?? ''}
-                </span>
+                {live[c.jid]?.typing ? (
+                  <span className="chat-item__preview chat-item__typing">{liveText({ typing: live[c.jid].typing })}</span>
+                ) : (
+                  <span className="chat-item__preview">
+                    {c.last_status && (
+                      <span
+                        className={c.last_status === 'read' ? 'chat-item__tick chat-item__tick--read' : 'chat-item__tick'}
+                        aria-label={TICK_LABEL[c.last_status]}
+                      >
+                        {c.last_status === 'sent' ? '✓' : '✓✓'}
+                      </span>
+                    )}
+                    {c.last_sender && c.last_msg_preview && `${formatPerson(c.last_sender)}: `}
+                    {c.last_msg_preview ?? ''}
+                  </span>
+                )}
                 {c.muted && (
                   <svg className="chat-item__pin" viewBox="0 0 24 24" width="16" height="16" aria-label="Silenciada">
                     <path

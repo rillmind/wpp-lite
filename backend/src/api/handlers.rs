@@ -208,6 +208,17 @@ pub async fn presence(State(st): State<AppState>, Json(body): Json<PresenceBody>
   StatusCode::NO_CONTENT
 }
 
+/// A conversa aberta no app: passa a receber "online" e "digitando…" dela.
+pub async fn watch(State(st): State<AppState>, Path(jid): Path<String>) -> ApiResult<StatusCode> {
+  validate_jid(&jid)?;
+  ensure_connected(&st)?;
+  st.wa
+    .watch_presence(&jid)
+    .await
+    .map_err(ApiError::Upstream)?;
+  Ok(StatusCode::NO_CONTENT)
+}
+
 pub async fn mark_read(
   State(st): State<AppState>,
   Path(jid): Path<String>,
