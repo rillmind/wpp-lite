@@ -641,6 +641,71 @@ fn deleted_on_phone_goes_away_but_keeps_newer_messages() {
 }
 
 #[test]
+fn search_ignores_case_and_accents() {
+  let db = db();
+  let mut m = msg(A, "1", 100, false, true);
+  m.body = Some("Reunião às 15h, confirma?".into());
+  db.insert_message(&m).unwrap();
+  let mut m = msg(B, "2", 200, false, true);
+  m.body = Some("reuniao cancelada".into());
+  db.insert_message(&m).unwrap();
+  db.insert_message(&msg(B, "3", 300, false, true)).unwrap();
+  let found: Vec<String> = db
+    .search_messages("REUNIÃO", 50)
+    .unwrap()
+    .into_iter()
+    .map(|m| m.id)
+    .collect();
+  assert_eq!(found, ["2", "1"], "mais nova primeiro");
+  assert!(db.search_messages("nada disso", 50).unwrap().is_empty());
+}
+
+#[test]
+fn search_skips_hidden_and_revoked() {
+  let mut db = db();
+  let mut m = msg(A, "1", 100, false, true);
+  m.body = Some("segredo".into());
+  db.insert_message(&m).unwrap();
+  db.revoke_message(A, "1").unwrap();
+  let mut h = msg(A, "2", 50, false, true);
+  h.body = Some("segredo velho".into());
+  db.import_history_chat(
+    &ChatMeta {
+      jid: A.into(),
+      ..Default::default()
+    },
+    None,
+    &[h],
+    Some("2"),
+  )
+  .unwrap();
+  assert!(db.search_messages("segredo", 50).unwrap().is_empty());
+}
+
+#[test]
+fn search_chats_by_name_or_phone() {
+  let db = db();
+  db.insert_message(&msg(A, "1", 100, false, true)).unwrap();
+  db.insert_message(&msg(B, "2", 200, false, true)).unwrap();
+  db.upsert_contact(&Contact {
+    jid: A.into(),
+    contact_name: Some("José Antônio".into()),
+    push_name: None,
+  })
+  .unwrap();
+  let names = |q: &str| -> Vec<String> {
+    db.search_chats(q, 20)
+      .unwrap()
+      .into_iter()
+      .map(|c| c.jid)
+      .collect()
+  };
+  assert_eq!(names("jose anto"), [A]);
+  assert_eq!(names("222"), [B]);
+  assert!(names("zzz").is_empty());
+}
+
+#[test]
 fn reactions_one_per_person_newest_wins() {
   let db = db();
   db.insert_message(&msg(A, "1", 100, false, true)).unwrap();

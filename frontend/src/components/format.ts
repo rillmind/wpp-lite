@@ -266,3 +266,51 @@ export function shuffledPalette(): number[] {
   }
   return order
 }
+
+/** Um caractere minúsculo e sem acento (o mesmo `fold` do backend, caractere a caractere). */
+function foldChar(c: string): string {
+  const base = c.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return base.length === 1 ? base : c.toLowerCase()
+}
+
+/** Texto minúsculo e sem acento, para comparar na busca. */
+export function foldText(text: string): string {
+  return Array.from(text, foldChar).join('')
+}
+
+/** Uma parte do texto, marcada quando é o trecho buscado. */
+export type HitPart = { text: string; hit?: boolean }
+
+/** Divide `text` nos trechos que batem com `query` (sem ligar para maiúsculas e acentos). */
+export function highlight(text: string, query: string): HitPart[] {
+  const needle = foldText(query.trim())
+  if (!needle) return [{ text }]
+  const chars = Array.from(text)
+  const folded = chars.map(foldChar)
+  const parts: HitPart[] = []
+  let plain = ''
+  let i = 0
+  while (i < chars.length) {
+    if (folded.slice(i, i + needle.length).join('') === needle) {
+      if (plain) parts.push({ text: plain })
+      plain = ''
+      const len = Array.from(needle).length
+      parts.push({ text: chars.slice(i, i + len).join(''), hit: true })
+      i += len
+    } else {
+      plain += chars[i]
+      i += 1
+    }
+  }
+  if (plain) parts.push({ text: plain })
+  return parts
+}
+
+/** Recorte do texto começando um pouco antes do primeiro trecho buscado. */
+export function snippet(text: string, query: string, before = 30): string {
+  const flat = text.replace(/\s+/g, ' ')
+  const at = foldText(flat).indexOf(foldText(query.trim()))
+  if (at <= before) return flat
+  const start = flat.lastIndexOf(' ', at - before)
+  return `…${flat.slice(start > 0 ? start + 1 : at - before)}`
+}

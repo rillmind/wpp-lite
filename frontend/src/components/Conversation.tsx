@@ -27,6 +27,8 @@ export interface ConvState {
   pending: boolean
   /** Ordem das cores de nome nesta abertura da conversa (sorteada ao abrir). */
   palette: number[]
+  /** Aberta pela busca: rola até esta mensagem em vez da primeira não lida. */
+  focusId?: string
 }
 
 
@@ -55,10 +57,10 @@ interface Props {
 const INTERACTIVE = 'button, a, audio, video, input, textarea'
 
 /** Rola até a mensagem e pisca para achar. */
-function jumpTo(id: string) {
+function jumpTo(id: string, behavior: ScrollBehavior = 'smooth') {
   const el = document.getElementById(`msg-${id}`)
   if (!el) return
-  el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  el.scrollIntoView({ block: 'center', behavior })
   el.classList.add('bubble--flash')
   setTimeout(() => el.classList.remove('bubble--flash'), 1200)
 }
@@ -152,11 +154,19 @@ export function Conversation({
   // se o usuário já estava lá, e preserva a posição ao carregar anteriores.
   useLayoutEffect(() => {
     const el = scroller.current
-    if (!el || conv.loading) return
+    if (!el) return
+    // Abrindo de novo (ex.: outra mensagem da busca na mesma conversa): posiciona de novo.
+    if (conv.loading) {
+      positioned.current = null
+      return
+    }
     if (positioned.current !== conv.jid) {
       positioned.current = conv.jid
       const sep = el.querySelector<HTMLElement>('.unread-sep')
-      if (sep) el.scrollTop = sep.offsetTop - el.clientHeight / 3
+      if (conv.focusId && document.getElementById(`msg-${conv.focusId}`)) {
+        stick.current = false
+        jumpTo(conv.focusId, 'auto')
+      } else if (sep) el.scrollTop = sep.offsetTop - el.clientHeight / 3
       else el.scrollTop = el.scrollHeight
       return
     }
@@ -346,6 +356,7 @@ export function Conversation({
       ) : (
         <Composer
           key={conv.jid}
+          jid={conv.jid}
           disabled={!connected}
           onSend={onSend}
           onSendFile={onSendFile}
