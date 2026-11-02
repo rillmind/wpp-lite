@@ -351,7 +351,8 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     // Mensagens velhas que chegam de uma vez ao reconectar não viram notificação.
     if (Date.now() - m.ts * 1000 > NOTIFY_MAX_AGE_MS) return
     const chat = chatsRef.current.find((c) => c.jid === m.chat_jid)
-    if (chat?.muted) return
+    // Silenciadas e arquivadas (no app ou no celular) não notificam.
+    if (chat?.muted || chat?.archived) return
     setTimeout(() => {
       const watching =
         selectedRef.current === m.chat_jid && document.visibilityState === 'visible' && document.hasFocus()

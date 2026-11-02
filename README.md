@@ -42,8 +42,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   mensagem e, por fim, fecha a conversa e volta à tela inicial.
 - Notificações no navegador (o sino na barra lateral), com a aba aberta, mesmo em segundo
   plano. O celular continua tocando e vibrando normalmente: a notificação do app vem logo depois
-  e não muda nada do que o WhatsApp manda para ele. Não notifica conversas silenciadas, status,
-  canais nem a conversa que você está olhando; clicar abre a conversa. Só funciona pelo endereço
+  e não muda nada do que o WhatsApp manda para ele. Não notifica conversas silenciadas, arquivadas,
+  status, canais nem a conversa que você está olhando; clicar abre a conversa. Só funciona pelo endereço
   HTTPS (por exemplo o do `tailscale serve`), não por `http://`.
 - Instala no celular como app (PWA): pelo endereço HTTPS, no Chrome do Android **⋮ → Instalar
   app** (ou "Adicionar à tela inicial"), no iPhone **Compartilhar → Adicionar à Tela de Início**.
