@@ -87,6 +87,12 @@ impl Db {
   /// Preenche o nome de cada pessoa marcada ("Você" para nós).
   pub fn name_mentions(&self, msgs: &mut [Message]) -> Result<()> {
     for m in msgs.iter_mut().flat_map(|m| m.mentions.iter_mut()) {
+      if m.jid == crate::model::MENTION_EVERYONE {
+        // Marcar todos marca você também.
+        m.me = true;
+        m.name = Some("todos".into());
+        continue;
+      }
       m.me = self.is_me(&m.jid)?;
       m.name = if m.me {
         Some("Você".into())

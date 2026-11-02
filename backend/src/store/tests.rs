@@ -568,3 +568,14 @@ fn chat_for_person_finds_existing_chat_by_lid_or_phone() {
   // Sem nada conhecido: o próprio jid.
   assert_eq!(db.chat_for_person("88@lid").unwrap().jid, "88@lid");
 }
+
+#[test]
+fn mention_everyone_counts_as_mentioning_me() {
+  let db = db();
+  let mut m = msg(GROUP, "1", 10, false, true);
+  m.mentions = vec![Mention::new(crate::model::MENTION_EVERYONE)];
+  let mut msgs = vec![m];
+  db.name_mentions(&mut msgs).unwrap();
+  assert!(msgs[0].mentions[0].me);
+  assert_eq!(msgs[0].mentions[0].name.as_deref(), Some("todos"));
+}

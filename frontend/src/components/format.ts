@@ -19,24 +19,36 @@ export function messageText(m: Message): string {
   return body ? `${tag} ${body}` : tag
 }
 
+/** Marcação de todos do grupo (o backend usa este "jid"; não é uma pessoa). */
+const MENTION_EVERYONE = 'everyone'
+/** Como o "@todos" aparece escrito, conforme o idioma de quem mandou. */
+const EVERYONE_WORDS = 'todos|todas|todes|all|everyone|todo'
+
 /** Uma parte do texto: comum ou uma marcação (`@Nome`). */
 export type TextPart = { text: string; mention?: Mention }
 
 /** Divide o texto nas marcações (`@` + usuário do jid), na ordem em que aparecem. */
 export function splitMentions(text: string, mentions: Mention[] | undefined): TextPart[] {
   const byUser = new Map<string, Mention>()
-  for (const m of mentions ?? []) byUser.set(m.jid.split('@')[0], m)
-  if (byUser.size === 0) return [{ text }]
+  let everyone: Mention | undefined
+  for (const m of mentions ?? []) {
+    if (m.jid === MENTION_EVERYONE) everyone = m
+    else byUser.set(m.jid.split('@')[0], m)
+  }
+  if (byUser.size === 0 && !everyone) return [{ text }]
   // Usuários mais longos primeiro, e sem dígito depois, para @123 não pegar o começo de @1234.
-  const users = [...byUser.keys()].sort((a, b) => b.length - a.length)
-  const re = new RegExp(`@(${users.map(escapeRe).join('|')})(?!\\d)`, 'g')
+  const users = [...byUser.keys()].sort((a, b) => b.length - a.length).map(escapeRe)
+  // "Marcar todos" chega sem jid: destaca a palavra como foi escrita.
+  if (everyone) users.push(EVERYONE_WORDS)
+  const re = new RegExp(`@(${users.join('|')})(?![\\w])`, 'gi')
   const parts: TextPart[] = []
   let last = 0
   for (const match of text.matchAll(re)) {
     const at = match.index
     if (at > last) parts.push({ text: text.slice(last, at) })
-    const mention = byUser.get(match[1])!
-    parts.push({ text: `@${mention.name ?? match[1]}`, mention })
+    const person = byUser.get(match[1])
+    if (person) parts.push({ text: `@${person.name ?? match[1]}`, mention: person })
+    else parts.push({ text: match[0], mention: everyone })
     last = at + match[0].length
   }
   if (last < text.length) parts.push({ text: text.slice(last) })

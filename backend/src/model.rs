@@ -132,6 +132,10 @@ pub struct Mention {
   pub me: bool,
 }
 
+/// "Jid" da marcação de todos do grupo (`@todos`/`@all`). Não é uma pessoa: vem do
+/// `ContextInfo.nonJidMentions` e conta como marcação para nós.
+pub const MENTION_EVERYONE: &str = "everyone";
+
 impl Mention {
   pub fn new(jid: impl Into<String>) -> Self {
     Self {
