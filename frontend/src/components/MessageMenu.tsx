@@ -5,6 +5,7 @@ import { Menu, type MenuItem } from './Menu'
 
 export type MessagePick =
   | 'reply'
+  | 'edit'
   | 'copy'
   | 'copy_code'
   | 'forward'
@@ -20,6 +21,8 @@ export type MessagePick =
 
 /** O WhatsApp só deixa apagar para todos até ~2,5 dias depois (o backend confere). */
 const REVOKE_WINDOW_SECS = 60 * 3600
+/** E editar, até 15 minutos depois. */
+const EDIT_WINDOW_SECS = 15 * 60
 
 interface Props {
   message: Message
@@ -47,6 +50,9 @@ export function MessageMenu({ message: m, chatJid, x, y, onPick, onClose }: Prop
     return <Menu x={x} y={y} items={items} onClose={onClose} />
   }
   if (!readOnly) items.push(item('Responder', 'reply'))
+  if (!readOnly && m.from_me && m.kind === 'text' && now - m.ts <= EDIT_WINDOW_SECS) {
+    items.push(item('Editar', 'edit'))
+  }
   if (m.body) items.push(item('Copiar', 'copy'))
   if (securityCode(m.body)) items.push(item('Copiar código', 'copy_code'))
   if ((m.kind === 'text' && m.body) || m.media) items.push(item('Encaminhar', 'forward'))

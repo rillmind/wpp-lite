@@ -18,6 +18,7 @@ fn msg(chat: &str, id: &str, ts: i64, from_me: bool, is_read: bool) -> Message {
     status: from_me.then_some(MsgStatus::Sent),
     is_read,
     media: None,
+    edited: false,
     starred: false,
     pinned: false,
     mentions: vec![],

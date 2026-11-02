@@ -422,6 +422,7 @@ pub async fn send(
     status: Some(MsgStatus::Sent),
     is_read: true,
     media: None,
+    edited: false,
     starred: false,
     pinned: false,
     mentions: vec![],
@@ -668,6 +669,71 @@ pub async fn message_action(
 }
 
 #[derive(Deserialize)]
+pub struct EditBody {
+  text: String,
+}
+
+/// O WhatsApp deixa editar até 15 minutos depois de enviar.
+const EDIT_WINDOW_SECS: i64 = 15 * 60;
+
+/// Edita uma mensagem de texto nossa (para todos, também no celular).
+pub async fn edit(
+  State(st): State<AppState>,
+  Path((jid, id)): Path<(String, String)>,
+  Json(body): Json<EditBody>,
+) -> ApiResult<Json<Option<Message>>> {
+  validate_jid(&jid)?;
+  validate_msg_id(&id)?;
+  let text = body.text.trim().to_string();
+  if text.is_empty() {
+    return Err(ApiError::BadRequest("texto vazio".into()));
+  }
+  if text.chars().count() > MAX_TEXT_CHARS {
+    return Err(ApiError::BadRequest(format!(
+      "texto acima de {MAX_TEXT_CHARS} caracteres"
+    )));
+  }
+  let (j, i) = (jid.clone(), id.clone());
+  let msg = st
+    .store
+    .run(move |db| db.get_message(&j, &i))
+    .await?
+    .ok_or(ApiError::NotFound)?;
+  if !msg.from_me || msg.kind != MessageKind::Text {
+    return Err(ApiError::BadRequest(
+      "só dá para editar as suas mensagens de texto".into(),
+    ));
+  }
+  if now_ms() / 1000 - msg.ts > EDIT_WINDOW_SECS {
+    return Err(ApiError::BadRequest(
+      "passou do prazo de 15 minutos para editar".into(),
+    ));
+  }
+  ensure_connected(&st)?;
+  if !st.limiter.try_acquire() {
+    return Err(ApiError::RateLimited);
+  }
+  st.wa
+    .edit_text(&msg, &text)
+    .await
+    .map_err(ApiError::Upstream)?;
+  let (updated, events) = st
+    .store
+    .run(move |db| {
+      db.set_edited(&jid, &id, &text)?;
+      Ok((
+        db.get_message(&jid, &id)?,
+        crate::ingest::message_changed(db, &jid, &id)?,
+      ))
+    })
+    .await?;
+  for ev in events {
+    let _ = st.events.send(ev);
+  }
+  Ok(Json(updated))
+}
+
+#[derive(Deserialize)]
 pub struct ForwardBody {
   /// Conversas de destino (até 5, como no WhatsApp).
   to: Vec<String>,
@@ -734,6 +800,7 @@ pub async fn forward(
       status: Some(MsgStatus::Sent),
       is_read: true,
       media: msg.media.clone(),
+      edited: false,
       starred: false,
       pinned: false,
       mentions: vec![],
@@ -857,6 +924,7 @@ pub async fn send_media(
     status: Some(MsgStatus::Sent),
     is_read: true,
     media: Some(media.info()),
+    edited: false,
     starred: false,
     pinned: false,
     mentions: vec![],

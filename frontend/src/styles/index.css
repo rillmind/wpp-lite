@@ -1126,3 +1126,8 @@ code {
   color: var(--ctp-crust);
   background: var(--ctp-red);
 }
+
+/* "editada" ao lado da hora */
+.bubble__edited {
+  font-style: italic;
+}

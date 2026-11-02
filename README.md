@@ -71,6 +71,10 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   WhatsApp (as recebidas). Excluir e denunciar pedem confirmação. Tudo vale também no celular. A
   mensagem fixada aparece no topo da conversa e as favoritadas ganham uma estrela. Mensagens que a
   pessoa apaga para todos viram "Mensagem apagada" aqui também.
+- Editar: nas suas mensagens de texto, até 15 minutos depois de enviar, "Editar" no menu da
+  mensagem põe o texto dela na caixa; "Salvar" troca para todos (Esc ou × cancela e devolve o que
+  você estava escrevendo). Mensagens editadas, aqui ou por quem mandou, mostram "editada" ao lado
+  da hora, já com o texto novo.
 - Ao abrir uma conversa, marca as mensagens como lidas (o contato vê os tiques azuis e o contador
   zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, no topo da lista,
   abrir não marca nada: só o botão "Marcar como lida" faz isso. O que você lê no celular também

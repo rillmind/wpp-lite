@@ -41,6 +41,9 @@ interface Props {
   /** Mensagem sendo respondida (aparece acima da caixa). */
   replyTo: Message | null
   onCancelReply: () => void
+  /** Mensagem sua sendo editada. */
+  editing: Message | null
+  onCancelEdit: () => void
   onMessagePick: (m: Message, pick: MessagePick) => void
   /** Abre a conversa com uma pessoa (remetente ou marcada). */
   onOpenPerson: (jid: string) => void
@@ -80,6 +83,8 @@ export function Conversation({
   onSendFile,
   replyTo,
   onCancelReply,
+  editing,
+  onCancelEdit,
   onMessagePick,
   onOpenPerson,
   onOpenPhone,
@@ -291,6 +296,7 @@ export function Conversation({
                 )}
                 <span className="bubble__meta">
                   {m.starred && <span aria-label="Favoritada">★</span>}
+                  {m.edited && <span className="bubble__edited">editada</span>}
                   {formatTime(m.ts)}
                   {m.from_me && m.status && (
                     <span className={m.status === 'read' ? 'tick tick--read' : 'tick'} aria-label={m.status}>
@@ -314,6 +320,8 @@ export function Conversation({
           onSendFile={onSendFile}
           reply={replyTo ? { who: who(replyTo), text: messageText(replyTo) } : null}
           onCancelReply={onCancelReply}
+          editing={editing ? { id: editing.id, text: editing.body ?? '' } : null}
+          onCancelEdit={onCancelEdit}
         />
       )}
       {menu && (

@@ -107,6 +107,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   // Conversa aberta que ainda não está na lista (sem mensagens); entra na primeira.
   const [draftChat, setDraftChat] = useState<Chat | null>(null)
   const [replyTo, setReplyTo] = useState<Message | null>(null)
+  const [editing, setEditing] = useState<Message | null>(null)
   const [forwarding, setForwarding] = useState<Message | null>(null)
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   const [noRead, setNoRead] = useState(loadNoRead)
@@ -297,11 +298,12 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     setSelected(null)
     setConv(null)
     setReplyTo(null)
+    setEditing(null)
   }, [])
 
   // Esc dentro de uma conversa, um passo por vez: desmarca a resposta (o foco fica na
   // caixa); depois sai da caixa de mensagem; depois volta para a tela inicial.
-  const replying = replyTo !== null
+  const replying = replyTo !== null || editing !== null
   useEffect(() => {
     if (!selected) return
     const onKey = (e: KeyboardEvent) => {
@@ -309,6 +311,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
       const typing = document.activeElement?.classList.contains('composer__input') ?? false
       if (replying) {
         setReplyTo(null)
+        setEditing(null)
         // Extensões de teclado (ex.: Vimium) tiram o foco da caixa no mesmo Esc, antes
         // daqui: devolve o cursor, que é o que este primeiro Esc deve deixar.
         setTimeout(() => document.querySelector<HTMLTextAreaElement>('.composer__input')?.focus(), 0)
@@ -372,7 +375,10 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   }
 
   function select(jid: string) {
-    if (jid !== selectedRef.current) setReplyTo(null)
+    if (jid !== selectedRef.current) {
+      setReplyTo(null)
+      setEditing(null)
+    }
     selectedRef.current = jid
     setSelected(jid)
     void openChat(jid)
@@ -458,7 +464,11 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   function messagePick(m: Message, pick: MessagePick) {
     switch (pick) {
       case 'reply':
+        setEditing(null)
         return setReplyTo(m)
+      case 'edit':
+        setReplyTo(null)
+        return setEditing(m)
       case 'copy':
         return void copy(withMentionNames(m.body ?? '', m.mentions), 'Texto')
       case 'copy_code': {
@@ -531,6 +541,16 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   async function send(text: string) {
     if (!selected) return
     const jid = selected
+    if (editing?.chat_jid === jid) {
+      try {
+        const updated = await api.edit(jid, editing.id, text)
+        if (updated) applyMessage(jid, editing.id, updated)
+        setEditing(null)
+      } catch (e) {
+        throw new Error(fail(e))
+      }
+      return
+    }
     try {
       const m = await api.send(jid, text, replyTo?.chat_jid === jid ? replyTo.id : null)
       setReplyTo(null)
@@ -621,6 +641,8 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             onSendFile={sendFile}
             replyTo={replyTo?.chat_jid === conv.jid ? replyTo : null}
             onCancelReply={() => setReplyTo(null)}
+            editing={editing?.chat_jid === conv.jid ? editing : null}
+            onCancelEdit={() => setEditing(null)}
             onMessagePick={messagePick}
             onOpenPerson={(jid) => void openPerson({ jid })}
             onOpenPhone={(phone) => void openPerson({ phone })}

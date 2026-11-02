@@ -97,6 +97,8 @@ pub(super) const MIGRATIONS: &[&str] = &[
   // 11: arquivar pelo app fica só no app. `archived` passa a ser o estado do celular;
   // `archived_app` a escolha feita aqui (NULL = segue o celular), que vale por cima.
   "ALTER TABLE chats ADD COLUMN archived_app INTEGER;",
+  // 12: mensagem editada por quem mandou (o corpo guardado já é o texto novo).
+  "ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0;",
 ];
 
 pub fn run(conn: &mut Connection) -> Result<()> {

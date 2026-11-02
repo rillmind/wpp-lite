@@ -128,6 +128,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(days ? { action, days } : { action }),
     }),
+  /** Troca o texto de uma mensagem sua (até 15 minutos depois de enviar). */
+  edit: (jid: string, id: string, text: string) =>
+    request<Message | null>(`/api/chats/${enc(jid)}/messages/${enc(id)}/edit`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
   forward: (jid: string, id: string, to: string[]) =>
     request<Message[]>(`/api/chats/${enc(jid)}/messages/${enc(id)}/forward`, {
       method: 'POST',

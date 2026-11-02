@@ -46,6 +46,8 @@ export interface Message {
   is_read: boolean
   /** Presente quando há imagem/figurinha para baixar. */
   media?: MediaInfo
+  /** Editada por quem mandou (o texto já é o novo). */
+  edited: boolean
   /** Favoritada. */
   starred: boolean
   /** Fixada na conversa. */

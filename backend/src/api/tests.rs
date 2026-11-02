@@ -33,6 +33,7 @@ struct FakeWa {
   /// Com QR: o "WhatsApp" está esperando o pareamento.
   qr: Option<String>,
   reading: Mutex<Vec<bool>>,
+  edits: Mutex<Vec<(String, String)>>,
 }
 
 #[async_trait]
@@ -86,6 +87,15 @@ impl WhatsApp for FakeWa {
       },
       r,
     ))
+  }
+
+  async fn edit_text(&self, msg: &Message, text: &str) -> Result<()> {
+    self
+      .edits
+      .lock()
+      .unwrap()
+      .push((msg.id.clone(), text.into()));
+    Ok(())
   }
 
   async fn message_action(&self, msg: &Message, action: MessageAction) -> Result<()> {
@@ -217,6 +227,7 @@ fn incoming(id: &str, ts: i64, is_read: bool) -> Message {
     status: None,
     is_read,
     media: None,
+    edited: false,
     starred: false,
     pinned: false,
     mentions: vec![],
@@ -1188,4 +1199,64 @@ async fn presence_follows_the_app() {
   )
   .await;
   assert_eq!(*h.wa.reading.lock().unwrap(), vec![true, false]);
+}
+
+#[tokio::test]
+async fn edits_own_text_within_15_minutes() {
+  let h = harness();
+  let now = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .unwrap()
+    .as_secs() as i64;
+  let mine = |id: &str, ts: i64| Message {
+    from_me: true,
+    sender_jid: None,
+    status: Some(crate::model::MsgStatus::Sent),
+    ..incoming(id, ts, true)
+  };
+  seed(
+    &h,
+    vec![
+      mine("novo", now - 60),
+      mine("velho", now - 3600),
+      incoming("deles", now, true),
+    ],
+  )
+  .await;
+  let edit = |id: &str, text: &str| {
+    let uri = format!("/api/chats/{A}/messages/{id}/edit");
+    let body = json!({ "text": text });
+    let h = &h;
+    async move { call(h, "POST", &uri, Some(body)).await }
+  };
+  let (status, body) = edit("novo", "texto certo").await;
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(body["body"], "texto certo");
+  assert_eq!(body["edited"], true);
+  assert_eq!(
+    *h.wa.edits.lock().unwrap(),
+    [("novo".to_string(), "texto certo".to_string())]
+  );
+  assert_eq!(edit("velho", "x").await.0, StatusCode::BAD_REQUEST);
+  assert_eq!(edit("deles", "x").await.0, StatusCode::BAD_REQUEST);
+  assert_eq!(edit("novo", "  ").await.0, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn edits_from_the_phone_replace_the_text() {
+  let h = harness();
+  seed(&h, vec![incoming("1", 100, true)]).await;
+  let out = crate::ingest::apply(
+    &h.store,
+    crate::wa::WaEvent::Edited {
+      chat_jid: A.into(),
+      id: "1".into(),
+      body: "corrigido".into(),
+    },
+  )
+  .await
+  .unwrap();
+  assert!(
+    matches!(&out[0], ApiEvent::MessageUpdated(m) if m.body.as_deref() == Some("corrigido") && m.edited)
+  );
 }

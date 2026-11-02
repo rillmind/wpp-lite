@@ -18,6 +18,9 @@ interface Props {
   /** Respondendo a esta mensagem (só texto vai como resposta). */
   reply: { who: string; text: string } | null
   onCancelReply: () => void
+  /** Editando esta mensagem sua: a caixa vem com o texto dela e "Salvar" troca o texto. */
+  editing: { id: string; text: string } | null
+  onCancelEdit: () => void
 }
 
 interface Pending {
@@ -65,7 +68,7 @@ async function probe(file: File): Promise<FileMeta> {
 
 let nextId = 1
 
-export function Composer({ disabled, onSend, onSendFile, reply, onCancelReply }: Props) {
+export function Composer({ disabled, onSend, onSendFile, reply, onCancelReply, editing, onCancelEdit }: Props) {
   const [text, setText] = useState('')
   const [files, setFiles] = useState<Pending[]>([])
   const [sending, setSending] = useState(false)
@@ -82,6 +85,23 @@ export function Composer({ disabled, onSend, onSendFile, reply, onCancelReply }:
   useEffect(() => {
     if (!disabled && !isTouch()) input.current?.focus()
   }, [disabled])
+
+  // Ao escolher "Editar", a caixa recebe o texto da mensagem (o que estava escrito é
+  // guardado e volta ao cancelar).
+  const editingId = editing?.id ?? null
+  const beforeEdit = useRef<string | null>(null)
+  useEffect(() => {
+    if (!editing) {
+      if (beforeEdit.current !== null) setText(beforeEdit.current)
+      beforeEdit.current = null
+      return
+    }
+    beforeEdit.current ??= text
+    setText(editing.text)
+    input.current?.focus()
+    // Só quando muda a mensagem sendo editada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingId])
 
   // Ao escolher "Responder", volta o foco para a caixa.
   const replyKey = reply ? `${reply.who}\n${reply.text}` : null
@@ -119,6 +139,19 @@ export function Composer({ disabled, onSend, onSendFile, reply, onCancelReply }:
   async function submit() {
     const value = text.trim()
     if ((!value && files.length === 0) || sending || disabled) return
+    if (editing) {
+      setSending(true)
+      setError(null)
+      try {
+        await onSend(value)
+        // Salvo: a caixa volta ao que estava escrito antes de editar.
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Falha ao editar')
+      } finally {
+        setSending(false)
+      }
+      return
+    }
     setSending(true)
     setError(null)
     try {
@@ -185,6 +218,23 @@ export function Composer({ disabled, onSend, onSendFile, reply, onCancelReply }:
             aria-label="Cancelar resposta"
             onPointerDown={(e) => e.preventDefault()}
             onClick={onCancelReply}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {editing && (
+        <div className="reply-bar">
+          <span className="reply-bar__body">
+            <span className="quote__who">Editando mensagem</span>
+            <span className="quote__text">{editing.text}</span>
+          </span>
+          <button
+            type="button"
+            className="attachment__remove"
+            aria-label="Cancelar edição"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onCancelEdit}
           >
             ×
           </button>
@@ -258,7 +308,7 @@ export function Composer({ disabled, onSend, onSendFile, reply, onCancelReply }:
           // Não tira o foco da caixa: no celular, isso fecharia o teclado a cada envio.
           onPointerDown={(e) => e.preventDefault()}
         >
-          {sending && files.length ? 'Enviando…' : 'Enviar'}
+          {editing ? 'Salvar' : sending && files.length ? 'Enviando…' : 'Enviar'}
         </button>
       </div>
     </form>
