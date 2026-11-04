@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { api, ApiError, getToken, setToken } from './api/client'
 import type { Chat, ConnState, Live, Message, ServerEvent } from './api/types'
 import { useEvents } from './api/useEvents'
+import { useTheme } from './api/theme'
 import { useReading } from './api/useReading'
 import { Settings } from './components/Settings'
 import { ChatList } from './components/ChatList'
@@ -139,6 +140,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [noRead, setNoRead] = useState(() => loadFlag(NO_READ_KEY, false))
   const [typingInList, setTypingInList] = useState(() => loadFlag(TYPING_IN_LIST_KEY, true))
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const appearance = useTheme()
   // Sobe quando o stream reabre: o servidor pode ter reiniciado e esquecido o que acompanhar.
   const [watchRound, setWatchRound] = useState(0)
   const [query, setQuery] = useState('')
@@ -865,6 +867,10 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
       </main>
       {settingsOpen && (
         <Settings
+          theme={appearance.theme}
+          onTheme={appearance.setTheme}
+          mode={appearance.mode}
+          onMode={appearance.setMode}
           noRead={noRead}
           onToggleNoRead={toggleNoRead}
           typingInList={typingInList}

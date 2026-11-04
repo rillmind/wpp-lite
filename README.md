@@ -22,7 +22,7 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   Clicar numa mensagem achada abre a conversa nela, piscando; Esc limpa a busca.
 - Mostra o nome de cada contato como está na agenda do seu celular; sem nome salvo, o nome que a
   pessoa definiu no WhatsApp; sem nenhum dos dois, o número. Em grupos, mostra quem mandou cada
-  mensagem, cada pessoa numa cor (as 14 cores de destaque do Catppuccin, sorteadas ao abrir a
+  mensagem, cada pessoa numa cor (as 14 cores de destaque do tema, sorteadas ao abrir a
   conversa; uma cor só se repete com mais de 14 pessoas) e com a foto de perfil dela ao lado da
   primeira mensagem de cada sequência. As marcações (`@`) aparecem com o nome
   da pessoa, destacadas, e com fundo quando quem foi marcado é você (inclusive o "@todos", que
@@ -33,6 +33,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   tem conta e abre a conversa com ele.
   Links (`https://…`, `www.…`) abrem numa aba nova do navegador.
 - Mostra as fotos de perfil, que carregam sozinhas.
+- Temas **Catppuccin**, **Gruvbox** e **WhatsApp**, cada um claro ou escuro, ou seguindo o sistema.
+  Escolha nas configurações; o padrão é o Catppuccin escuro. Vale só para este navegador.
 - No topo da conversa aberta mostra quando a pessoa está **digitando…** ou **gravando áudio…** (em
   grupos, quem), **online** ou o "visto por último", quando ela deixa mostrar. O "digitando…" aparece
   também na lista, no lugar da última mensagem, nos grupos e nas 30 conversas individuais mais

@@ -162,6 +162,8 @@ Aceite: abrir o front mostra a lista instantaneamente; abrir um chat mostra as �
 
 ### 6.1 Tema: Catppuccin Mocha
 
+> Hoje há outros temas, escolhidos nas configurações (`frontend/src/styles/theme.css`); o Catppuccin Mocha continua o padrão, e as variáveis `--ctp-*` viraram `--pal-*`.
+
 Todo o visual do front usa a paleta **Catppuccin Mocha** como padrão. Definir as cores como variáveis CSS em `:root` (sem hex solto espalhado pelos componentes) e consumir só as variáveis.
 
 ```css
