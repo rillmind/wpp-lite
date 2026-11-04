@@ -17,6 +17,7 @@ import {
   SENDER_COLORS,
   senderName,
 } from './format'
+import { Icon, type IconName } from './Icon'
 
 export interface ConvState {
   jid: string
@@ -110,7 +111,9 @@ function Reactions({ reactions, onToggle }: { reactions: Reaction[]; onToggle?: 
   )
 }
 
-const STATUS_ICON: Record<string, string> = { sent: '✓', delivered: '✓✓', read: '✓✓' }
+const STATUS_ICON: Record<string, IconName> = { sent: 'check', delivered: 'checks', read: 'checks' }
+/** Ícone das mensagens sem conteúdo para mostrar. */
+const KIND_ICON: Record<string, IconName> = { view_once: 'camera', revoked: 'ban' }
 
 export function Conversation({
   chat,
@@ -210,7 +213,7 @@ export function Conversation({
     <section className="conversation" aria-label="Conversa">
       <header className="topbar">
         <button type="button" className="btn btn--ghost topbar__back" onClick={onBack} aria-label="Voltar">
-          ←
+          <Icon name="back" />
         </button>
         {chat && <Avatar jid={chat.jid} name={chatName(chat)} size="sm" />}
         <div className="topbar__title">
@@ -229,7 +232,7 @@ export function Conversation({
       </header>
       {pinned && (
         <button type="button" className="pinned-bar" onClick={() => jumpTo(pinned.id)}>
-          <span aria-hidden="true">📌</span>
+          <Icon name="pin" size={16} />
           <span className="pinned-bar__text">{messageText(pinned)}</span>
         </button>
       )}
@@ -346,19 +349,24 @@ export function Conversation({
                   </>
                 ) : (
                   <span className={m.kind === 'text' ? 'bubble__text' : 'bubble__text bubble__text--media'}>
-                    {m.kind === 'text' ? <RichText text={m.body ?? ''} mentions={m.mentions} onMention={onOpenPerson} onPhone={onOpenPhone} /> : messageText(m)}
+                    {m.kind === 'text' ? <RichText text={m.body ?? ''} mentions={m.mentions} onMention={onOpenPerson} onPhone={onOpenPhone} /> : (
+                      <>
+                        {KIND_ICON[m.kind] && <Icon name={KIND_ICON[m.kind]} size={15} className="bubble__kind" />}
+                        {messageText(m)}
+                      </>
+                    )}
                   </span>
                 )}
                 {m.reactions && m.reactions.length > 0 && (
                   <Reactions reactions={m.reactions} onToggle={readOnly ? undefined : (e) => onReact(m, e)} />
                 )}
                 <span className="bubble__meta">
-                  {m.starred && <span aria-label="Favoritada">★</span>}
+                  {m.starred && <Icon name="star" size={13} label="Favoritada" />}
                   {m.edited && <span className="bubble__edited">editada</span>}
                   {formatTime(m.ts)}
                   {m.from_me && m.status && (
                     <span className={m.status === 'read' ? 'tick tick--read' : 'tick'} aria-label={m.status}>
-                      {STATUS_ICON[m.status]}
+                      <Icon name={STATUS_ICON[m.status]} size={15} />
                     </span>
                   )}
                 </span>

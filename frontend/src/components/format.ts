@@ -7,8 +7,8 @@ const PLACEHOLDER: Record<string, string> = {
   doc: '[documento]',
   sticker: '[figurinha]',
   // O WhatsApp não entrega o conteúdo a aparelhos conectados.
-  view_once: '📷 Visualização única — abra no celular',
-  revoked: '🚫 Mensagem apagada',
+  view_once: 'Visualização única — abra no celular',
+  revoked: 'Mensagem apagada',
   other: '[mensagem]',
 }
 

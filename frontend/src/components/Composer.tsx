@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } 
 import { getDraft, setDraft } from '../api/drafts'
 import { VoiceRecorder, voiceSupported, type Recorded } from '../api/voice'
 import { formatBytes, formatDuration } from './format'
+import { Icon } from './Icon'
 
 /** Maior arquivo aceito pelo backend (o limite do WhatsApp para mídia). */
 const MAX_FILE_BYTES = 100 * 1024 * 1024
@@ -321,7 +322,7 @@ export function Composer({
             onPointerDown={(e) => e.preventDefault()}
             onClick={onCancelReply}
           >
-            ×
+            <Icon name="close" size={18} />
           </button>
         </div>
       )}
@@ -338,7 +339,7 @@ export function Composer({
             onPointerDown={(e) => e.preventDefault()}
             onClick={onCancelEdit}
           >
-            ×
+            <Icon name="close" size={18} />
           </button>
         </div>
       )}
@@ -350,7 +351,7 @@ export function Composer({
                 <img className="attachment__thumb" src={p.preview} alt="" />
               ) : (
                 <span className="attachment__thumb attachment__thumb--file" aria-hidden="true">
-                  📄
+                  <Icon name="file" />
                 </span>
               )}
               <span className="attachment__name">{p.file.name || 'Imagem colada'}</span>
@@ -362,7 +363,7 @@ export function Composer({
                 disabled={sending}
                 onClick={() => removeFile(p.id)}
               >
-                ×
+                <Icon name="close" size={18} />
               </button>
             </li>
           ))}
@@ -378,7 +379,7 @@ export function Composer({
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => void stopRecording(false)}
           >
-            🗑
+            <Icon name="trash" size={20} />
           </button>
           <span className="recording" role="status">
             <span className="recording__dot" aria-hidden="true" />
@@ -414,7 +415,7 @@ export function Composer({
             onPointerDown={(e) => e.preventDefault()}
             onClick={() => picker.current?.click()}
           >
-            📎
+            <Icon name="clip" size={20} />
           </button>
           <textarea
             ref={input}
@@ -442,7 +443,7 @@ export function Composer({
               }}
               onContextMenu={(e) => e.preventDefault()}
             >
-              {sending ? '…' : '🎤'}
+              {sending ? '…' : <Icon name="mic" size={20} />}
             </button>
           ) : (
             <button
