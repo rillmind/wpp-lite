@@ -4,16 +4,20 @@ import type { ServerEvent } from './types'
 
 export type StreamState = 'open' | 'connecting' | 'closed'
 
-const NAMES = [
-  'message.new',
-  'message.status',
-  'message.updated',
-  'message.deleted',
-  'chat.updated',
-  'chat.deleted',
-  'history.loaded',
-  'connection.state',
-] as const
+// O EventSource só entrega evento com nome que tenha ouvinte. Como `Record`, esquecer um
+// tipo novo de `ServerEvent` aqui vira erro de compilação, em vez de o evento sumir calado.
+const NAMES: Record<ServerEvent['type'], true> = {
+  'message.new': true,
+  'message.status': true,
+  'message.updated': true,
+  'message.deleted': true,
+  'chat.updated': true,
+  'chat.deleted': true,
+  'history.loaded': true,
+  'connection.state': true,
+  'chat.typing': true,
+  'chat.presence': true,
+}
 
 /**
  * Assina `/api/events`. O EventSource reconecta sozinho; `onResync` é chamado
@@ -36,7 +40,7 @@ export function useEvents(onEvent: (ev: ServerEvent) => void, onResync: () => vo
       opened = true
     }
     es.onerror = () => setState(es.readyState === EventSource.CLOSED ? 'closed' : 'connecting')
-    for (const name of NAMES) {
+    for (const name of Object.keys(NAMES)) {
       es.addEventListener(name, (e) => {
         try {
           handlers.current.onEvent(JSON.parse((e as MessageEvent<string>).data) as ServerEvent)

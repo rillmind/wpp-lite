@@ -57,7 +57,7 @@ pub struct RustWa {
   channels: tokio::sync::Mutex<Option<HashMap<String, Channel>>>,
   presence: Arc<Presence>,
   /// Conversa individual cujo "online" e "digitando…" estamos acompanhando.
-  watching: tokio::sync::Mutex<Option<Jid>>,
+  watching: Arc<tokio::sync::Mutex<Option<Jid>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,7 +103,8 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
 
   let client = bot.client();
   let handle = bot.spawn();
-  tokio::spawn(Arc::clone(&presence).run(Arc::clone(&client)));
+  let watching = Arc::new(tokio::sync::Mutex::new(None));
+  tokio::spawn(Arc::clone(&presence).run(Arc::clone(&client), Arc::clone(&watching)));
   Ok(Arc::new(RustWa {
     client,
     handle: tokio::sync::Mutex::new(Some(handle)),
@@ -113,7 +114,7 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
     qr,
     channels: tokio::sync::Mutex::new(None),
     presence,
-    watching: tokio::sync::Mutex::new(None),
+    watching,
   }))
 }
 
@@ -815,7 +816,11 @@ impl Presence {
     });
   }
 
-  async fn run(self: Arc<Self>, client: Arc<Client>) {
+  async fn run(
+    self: Arc<Self>,
+    client: Arc<Client>,
+    watching: Arc<tokio::sync::Mutex<Option<Jid>>>,
+  ) {
     loop {
       let want = lock(&self.reading_until).is_some_and(|t| t > Instant::now());
       let known = *lock(&self.announced);
@@ -829,6 +834,16 @@ impl Presence {
           Ok(()) => {
             tracing::debug!(online = want, "presença enviada");
             *lock(&self.announced) = Some(want);
+            // A conversa é aberta antes de o aviso de leitura chegar aqui, e o pedido feito
+            // enquanto offline pode não valer: pede de novo a cada vez que fica online.
+            if want {
+              let jid = watching.lock().await.clone();
+              if let Some(jid) = jid {
+                if let Err(e) = client.presence().subscribe(jid).await {
+                  tracing::debug!(error = %e, "falha ao acompanhar presença");
+                }
+              }
+            }
           }
           Err(e) => tracing::debug!(error = ?e, "não foi possível enviar a presença"),
         }
