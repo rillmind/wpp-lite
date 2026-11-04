@@ -11,6 +11,7 @@ interface Props {
   conn: { level: 'ok' | 'warn' | 'err'; text: string }
   notify: NotifyState
   onToggleNotify: () => void
+  onSettings: () => void
 }
 
 const NOTIFY_TIP: Record<NotifyState, string> = {
@@ -20,7 +21,7 @@ const NOTIFY_TIP: Record<NotifyState, string> = {
   unsupported: 'Notificações só pelo endereço HTTPS (https://…ts.net)',
 }
 /** Barra lateral estreita, com as seções do app. */
-export function Rail({ section, unread, onSection, conn, notify, onToggleNotify }: Props) {
+export function Rail({ section, unread, onSection, conn, notify, onToggleNotify, onSettings }: Props) {
   const item = (s: Section) => (
     <button
       key={s}
@@ -67,6 +68,9 @@ export function Rail({ section, unread, onSection, conn, notify, onToggleNotify 
         aria-label={conn.text}
         data-tip={conn.text}
       />
+      <button type="button" className="rail__btn" aria-label="Configurações" title="Configurações" onClick={onSettings}>
+        <Icon name="settings" />
+      </button>
     </nav>
   )
 }

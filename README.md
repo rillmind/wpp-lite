@@ -14,7 +14,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
 - Uma barra lateral separa **Conversas**, **Status**, **Canais** e **Arquivadas** (com o número de
   conversas não lidas, ou um ponto nas outras seções); no celular ela fica embaixo. No fim dela, um
   pontinho mostra a conexão: verde conectado, amarelo conectando ou servidor desconectado, vermelho
-  sessão encerrada; passar o mouse (ou tocar, no celular) mostra o texto. O botão de Status abre direto a conversa do Status. Status e
+  sessão encerrada; passar o mouse (ou tocar, no celular) mostra o texto. Logo depois dele fica o
+  botão de **configurações**, com as opções que valem para este navegador. O botão de Status abre direto a conversa do Status. Status e
   canais são só de leitura: daqui não dá para postar um status nem escrever num canal.
 - Busca, no topo da lista, conversas pelo nome (ou número) e mensagens pelo texto, sem ligar para
   maiúsculas nem acentos, em tudo o que já está guardado no servidor (não pergunta ao celular).
@@ -33,8 +34,10 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   Links (`https://…`, `www.…`) abrem numa aba nova do navegador.
 - Mostra as fotos de perfil, que carregam sozinhas.
 - No topo da conversa aberta mostra quando a pessoa está **digitando…** ou **gravando áudio…** (em
-  grupos, quem), **online** ou o "visto por último", quando ela deixa mostrar; o "digitando…" aparece
-  também na lista. Só o dos outros: o app nunca avisa que você está digitando.
+  grupos, quem), **online** ou o "visto por último", quando ela deixa mostrar. O "digitando…" aparece
+  também na lista, no lugar da última mensagem, nos grupos e nas 30 conversas individuais mais
+  recentes, mesmo sem conversa aberta; dá para desligar nas configurações. Só o dos outros: o app
+  nunca avisa que você está digitando.
 - Imagens, figurinhas, vídeos, áudios e documentos aparecem como um botão com o tamanho do
   arquivo (e a duração, em vídeo e áudio); só são baixados do WhatsApp quando você clica. Imagem
   abre na conversa (clique para ampliar); vídeo e áudio começam a tocar no player do navegador;
@@ -98,11 +101,12 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   você estava escrevendo). Mensagens editadas, aqui ou por quem mandou, mostram "editada" ao lado
   da hora, já com o texto novo.
 - Ao abrir uma conversa, marca as mensagens como lidas (o contato vê os tiques azuis e o contador
-  zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, no topo da lista,
+  zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, nas configurações,
   abrir não marca nada: só o botão "Marcar como lida" faz isso. O que você lê no celular também
   aparece como lido aqui.
-- Só aparece como "online" para o WhatsApp enquanto você lê uma conversa no app (aba em foco,
-  conversa aberta, mexendo nos últimos 2 minutos). Fora disso, as notificações tocam e vibram no
+- Só aparece como "online" para o WhatsApp enquanto você usa o app (aba em foco, mexendo nos últimos
+  2 minutos). Com o "digitando…" nas conversas fechadas desligado, também precisa de uma conversa
+  aberta. Fora disso, as notificações tocam e vibram no
   celular normalmente, mesmo com o servidor ligado. Enquanto está online, o WhatsApp deixa de
   vibrar o celular para todas as conversas, não só a aberta.
 - Guarda o que chega a partir do pareamento, e tudo o que já foi carregado fica guardado. Na

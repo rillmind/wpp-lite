@@ -250,12 +250,26 @@ pub async fn presence(State(st): State<AppState>, Json(body): Json<PresenceBody>
   StatusCode::NO_CONTENT
 }
 
-/// A conversa aberta no app: passa a receber "online" e "digitando…" dela.
-pub async fn watch(State(st): State<AppState>, Path(jid): Path<String>) -> ApiResult<StatusCode> {
-  validate_jid(&jid)?;
+/// Teto de conversas acompanhadas: cada uma é um pedido ao WhatsApp.
+const MAX_WATCHED: usize = 31;
+
+#[derive(Deserialize)]
+pub struct WatchBody {
+  jids: Vec<String>,
+}
+
+/// As conversas de que o app quer "online" e "digitando…": a aberta e as recentes.
+pub async fn watch(
+  State(st): State<AppState>,
+  Json(mut body): Json<WatchBody>,
+) -> ApiResult<StatusCode> {
+  body.jids.truncate(MAX_WATCHED);
+  for jid in &body.jids {
+    validate_jid(jid)?;
+  }
   ensure_connected(&st)?;
   st.wa
-    .watch_presence(&jid)
+    .watch_presence(&body.jids)
     .await
     .map_err(ApiError::Upstream)?;
   Ok(StatusCode::NO_CONTENT)

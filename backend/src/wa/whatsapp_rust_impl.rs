@@ -56,8 +56,8 @@ pub struct RustWa {
   /// Canais assinados (jid → dados), buscados uma vez por execução.
   channels: tokio::sync::Mutex<Option<HashMap<String, Channel>>>,
   presence: Arc<Presence>,
-  /// Conversa individual cujo "online" e "digitando…" estamos acompanhando.
-  watching: Arc<tokio::sync::Mutex<Option<Jid>>>,
+  /// Conversas individuais cujo "online" e "digitando…" estamos acompanhando.
+  watching: Arc<tokio::sync::Mutex<Vec<Jid>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -103,7 +103,7 @@ pub async fn start(opts: WaOptions, tx: mpsc::Sender<WaEvent>) -> Result<Arc<dyn
 
   let client = bot.client();
   let handle = bot.spawn();
-  let watching = Arc::new(tokio::sync::Mutex::new(None));
+  let watching = Arc::new(tokio::sync::Mutex::new(Vec::new()));
   tokio::spawn(Arc::clone(&presence).run(Arc::clone(&client), Arc::clone(&watching)));
   Ok(Arc::new(RustWa {
     client,
@@ -751,20 +751,31 @@ impl WhatsApp for RustWa {
     Ok(Some((pn, lid)))
   }
 
-  async fn watch_presence(&self, chat_jid: &str) -> Result<()> {
-    let jid = parse_jid(chat_jid)?;
-    if jid.is_group() || jid.is_status_broadcast() || jid.is_newsletter() {
-      return Ok(());
+  async fn watch_presence(&self, chat_jids: &[String]) -> Result<()> {
+    let mut wanted: Vec<Jid> = Vec::with_capacity(chat_jids.len());
+    for jid in chat_jids {
+      let jid = parse_jid(jid)?;
+      let person = !(jid.is_group() || jid.is_status_broadcast() || jid.is_newsletter());
+      if person && !wanted.contains(&jid) {
+        wanted.push(jid);
+      }
     }
     let presence = self.client.presence();
-    let previous = self.watching.lock().await.replace(jid.clone());
-    if let Some(old) = previous.filter(|old| *old != jid) {
-      // Só uma conversa acompanhada por vez: a aberta no app.
-      if let Err(e) = presence.unsubscribe(&old).await {
+    let mut watching = self.watching.lock().await;
+    for old in watching.iter().filter(|old| !wanted.contains(old)) {
+      if let Err(e) = presence.unsubscribe(old).await {
         tracing::debug!(error = %e, "falha ao deixar de acompanhar presença");
       }
     }
-    presence.subscribe(jid).await.map_err(|e| anyhow!("{e}"))
+    let new: Vec<Jid> = wanted
+      .iter()
+      .filter(|jid| !watching.contains(jid))
+      .cloned()
+      .collect();
+    *watching = wanted;
+    drop(watching);
+    subscribe_all(&self.client, new).await;
+    Ok(())
   }
 
   fn set_reading(&self, reading: bool) {
@@ -816,11 +827,7 @@ impl Presence {
     });
   }
 
-  async fn run(
-    self: Arc<Self>,
-    client: Arc<Client>,
-    watching: Arc<tokio::sync::Mutex<Option<Jid>>>,
-  ) {
+  async fn run(self: Arc<Self>, client: Arc<Client>, watching: Arc<tokio::sync::Mutex<Vec<Jid>>>) {
     loop {
       let want = lock(&self.reading_until).is_some_and(|t| t > Instant::now());
       let known = *lock(&self.announced);
@@ -837,12 +844,8 @@ impl Presence {
             // A conversa é aberta antes de o aviso de leitura chegar aqui, e o pedido feito
             // enquanto offline pode não valer: pede de novo a cada vez que fica online.
             if want {
-              let jid = watching.lock().await.clone();
-              if let Some(jid) = jid {
-                if let Err(e) = client.presence().subscribe(jid).await {
-                  tracing::debug!(error = %e, "falha ao acompanhar presença");
-                }
-              }
+              let jids = watching.lock().await.clone();
+              subscribe_all(&client, jids).await;
             }
           }
           Err(e) => tracing::debug!(error = ?e, "não foi possível enviar a presença"),
@@ -853,6 +856,19 @@ impl Presence {
         () = tokio::time::sleep(Duration::from_secs(5)) => {}
       }
     }
+  }
+}
+
+/// Intervalo entre pedidos de presença, para não mandar a lista toda de uma vez.
+const SUBSCRIBE_GAP: Duration = Duration::from_millis(100);
+
+/// Pede a presença de cada conversa; uma falha não impede as outras.
+async fn subscribe_all(client: &Client, jids: Vec<Jid>) {
+  for jid in jids {
+    if let Err(e) = client.presence().subscribe(jid).await {
+      tracing::debug!(error = %e, "falha ao acompanhar presença");
+    }
+    tokio::time::sleep(SUBSCRIBE_GAP).await;
   }
 }
 

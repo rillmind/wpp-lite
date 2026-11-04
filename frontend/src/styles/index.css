@@ -198,17 +198,6 @@ code {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: var(--fg-muted);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-.toggle input {
-  accent-color: var(--accent);
-}
 .topbar__name,
 .topbar__sub {
   margin: 0;
@@ -1168,6 +1157,26 @@ code {
 .dialog__text {
   margin: 0;
   color: var(--fg-muted);
+}
+.setting {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+.setting input {
+  flex: none;
+  margin-top: 0.2rem;
+  accent-color: var(--accent);
+}
+.setting__name,
+.setting__hint {
+  display: block;
+}
+.setting__hint {
+  margin-top: 0.15rem;
+  color: var(--fg-muted);
+  font-size: 0.85rem;
 }
 .dialog__actions {
   display: flex;

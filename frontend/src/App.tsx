@@ -3,6 +3,7 @@ import { api, ApiError, getToken, setToken } from './api/client'
 import type { Chat, ConnState, Live, Message, ServerEvent } from './api/types'
 import { useEvents } from './api/useEvents'
 import { useReading } from './api/useReading'
+import { Settings } from './components/Settings'
 import { ChatList } from './components/ChatList'
 import { ChatMenu, type MenuAction } from './components/ChatMenu'
 import type { FileMeta } from './components/Composer'
@@ -33,6 +34,7 @@ import { notifyState, showNotification, toggleNotify, type NotifyState } from '.
 
 // Marcada: abrir a conversa não envia recibo de leitura. Desmarcada (padrão): envia.
 const NO_READ_KEY = 'wpp.noRead'
+const TYPING_IN_LIST_KEY = 'wpp.typingInList'
 /** Espera para a notificação do app vir depois da do celular. */
 const NOTIFY_DELAY_MS = 1500
 /** Mais velha que isso (ex.: entregue na reconexão), não notifica. */
@@ -54,15 +56,25 @@ const SEARCH_DELAY_MS = 250
 /** Sem novo aviso de "digitando" por este tempo, considera que parou. */
 const TYPING_TTL_MS = 8000
 
-/** Conversa individual aberta: pede o "online" e o "digitando…" dela (grupos chegam sozinhos). */
-function watchPresence(jid: string) {
-  if (jid.endsWith('@g.us') || isReadOnly(jid)) return
-  void api.watch(jid).catch(() => undefined)
+/** Quantas conversas individuais recentes acompanhar além da aberta (cada uma é um pedido ao WhatsApp). */
+const WATCH_RECENT = 30
+
+/** Conversas individuais de que pedir "online" e "digitando…" (grupos chegam sozinhos). */
+function presenceTargets(chats: Chat[], selected: string | null, typingInList: boolean): string[] {
+  const person = (jid: string) => !jid.endsWith('@g.us') && !isReadOnly(jid)
+  const recent = typingInList
+    ? chats
+        .filter((c) => person(c.jid) && chatSection(c) === 'chats')
+        .slice(0, WATCH_RECENT)
+        .map((c) => c.jid)
+    : []
+  return selected && person(selected) ? [selected, ...recent.filter((j) => j !== selected)] : recent
 }
 
-function loadNoRead(): boolean {
+function loadFlag(key: string, fallback: boolean): boolean {
   try {
-    return localStorage.getItem(NO_READ_KEY) === '1'
+    const saved = localStorage.getItem(key)
+    return saved === null ? fallback : saved === '1'
   } catch {
     return false
   }
@@ -124,7 +136,11 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [editing, setEditing] = useState<Message | null>(null)
   const [forwarding, setForwarding] = useState<Message | null>(null)
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
-  const [noRead, setNoRead] = useState(loadNoRead)
+  const [noRead, setNoRead] = useState(() => loadFlag(NO_READ_KEY, false))
+  const [typingInList, setTypingInList] = useState(() => loadFlag(TYPING_IN_LIST_KEY, true))
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  // Sobe quando o stream reabre: o servidor pode ter reiniciado e esquecido o que acompanhar.
+  const [watchRound, setWatchRound] = useState(0)
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState<{ q: string; result: SearchResult | null }>({ q: '', result: null })
   const searching = query.trim().length >= 2
@@ -362,14 +378,19 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
 
   const onResync = useCallback(() => {
     loadChats()
-    if (selectedRef.current) {
-      void openChat(selectedRef.current)
-      watchPresence(selectedRef.current)
-    }
+    setWatchRound((n) => n + 1)
+    if (selectedRef.current) void openChat(selectedRef.current)
   }, [loadChats, openChat])
 
   const stream = useEvents(onEvent, onResync)
-  useReading(selected !== null)
+  // Sem estar online o WhatsApp não manda "digitando…": conta como lendo mesmo sem conversa aberta.
+  useReading(selected !== null || typingInList)
+
+  const watchKey = presenceTargets(chats, selected, typingInList).join(' ')
+  useEffect(() => {
+    if (conn !== 'connected') return
+    void api.watch(watchKey ? watchKey.split(' ') : []).catch(() => undefined)
+  }, [watchKey, conn, watchRound])
 
   const closeChat = useCallback(() => {
     selectedRef.current = null
@@ -485,7 +506,6 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   function select(jid: string, focusId?: string) {
     if (jid !== selectedRef.current) {
       setReplyTo(null)
-      watchPresence(jid)
       setEditing(null)
     }
     selectedRef.current = jid
@@ -701,14 +721,22 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     }
   }
 
-  function toggleNoRead() {
-    const next = !noRead
-    setNoRead(next)
+  function saveFlag(key: string, value: boolean) {
     try {
-      localStorage.setItem(NO_READ_KEY, next ? '1' : '0')
+      localStorage.setItem(key, value ? '1' : '0')
     } catch {
       // Preferência vale só nesta aba.
     }
+  }
+
+  function toggleNoRead() {
+    setNoRead(!noRead)
+    saveFlag(NO_READ_KEY, !noRead)
+  }
+
+  function toggleTypingInList() {
+    setTypingInList(!typingInList)
+    saveFlag(TYPING_IN_LIST_KEY, !typingInList)
   }
 
   const visible = useMemo(() => chats.filter((c) => chatSection(c) === section), [chats, section])
@@ -745,17 +773,11 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
         conn={{ level: connClass, text: connText }}
         notify={notify}
         onToggleNotify={() => void onToggleNotify()}
+        onSettings={() => setSettingsOpen(true)}
       />
       <aside className="sidebar">
         <header className="topbar">
           <h1 className="topbar__title">{SECTION_TITLE[section]}</h1>
-          <label
-            className="toggle"
-            title="Marcado: abrir a conversa não marca as mensagens como lidas (o contato não vê os tiques azuis)"
-          >
-            <input type="checkbox" checked={noRead} onChange={toggleNoRead} />
-            Não visualizar ao abrir
-          </label>
         </header>
         <div className="search">
           <input
@@ -790,6 +812,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             onSelect={select}
             onMenu={(chat, x, y) => setMenu({ chat, x, y })}
             live={live}
+            typingInList={typingInList}
           />
         )}
         {menu && (
@@ -840,6 +863,15 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           <p className="empty empty--center">Selecione uma conversa.</p>
         )}
       </main>
+      {settingsOpen && (
+        <Settings
+          noRead={noRead}
+          onToggleNoRead={toggleNoRead}
+          typingInList={typingInList}
+          onToggleTypingInList={toggleTypingInList}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </div>
   )
 }

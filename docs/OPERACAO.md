@@ -40,7 +40,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `GET /api/chats/{jid}/messages?limit=&before=` | últimas mensagens do banco local + `first_unread_id`; a primeira página sempre inclui todas as não lidas. Mensagens com imagem/figurinha trazem `media` |
 | `GET /api/chats/{jid}/messages/{id}/media` | baixa a imagem, figurinha, vídeo, áudio ou documento do WhatsApp na hora (`Cache-Control: no-store`; documento sempre como anexo; até 32 MB, vídeo até 100 MB) |
 | `GET /api/chats/{jid}/avatar` | foto de perfil, buscada na hora; `204` se não houver |
-| `POST /api/chats/{jid}/watch` | passa a receber "online" e "digitando…" da conversa individual aberta (deixa de acompanhar a anterior); chegam como `chat.presence` e `chat.typing` no SSE |
+| `POST /api/presence/watch` | `{ "jids": [...] }`: passa a receber "online" e "digitando…" destas conversas individuais, até 31 (deixa de acompanhar as outras); chegam como `chat.presence` e `chat.typing` no SSE |
 | `POST /api/chats/{jid}/read` | recibos de leitura + marca lido no celular |
 | `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread", "hours"? }` (`hours` só em `mute`; sem ele, para sempre). `archive`/`unarchive` ficam só no app |
 | `POST /api/chats/{jid}/send` | `{ "text": "...", "reply_to"? }`, uma mensagem por requisição; `reply_to` cita outra mensagem da conversa |

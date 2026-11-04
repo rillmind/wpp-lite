@@ -50,8 +50,8 @@ impl WhatsApp for FakeWa {
     }
   }
 
-  async fn watch_presence(&self, chat_jid: &str) -> Result<()> {
-    self.watched.lock().unwrap().push(chat_jid.into());
+  async fn watch_presence(&self, chat_jids: &[String]) -> Result<()> {
+    *self.watched.lock().unwrap() = chat_jids.to_vec();
     Ok(())
   }
 
@@ -1324,9 +1324,29 @@ async fn sends_voice_notes_as_audio() {
 #[tokio::test]
 async fn watch_asks_whatsapp_for_presence() {
   let h = harness();
-  let (status, _) = call(&h, "POST", &format!("/api/chats/{A}/watch"), None).await;
+  const B: &str = "222@s.whatsapp.net";
+  let body = json!({ "jids": [A, B] });
+  let (status, _) = call(&h, "POST", "/api/presence/watch", Some(body)).await;
   assert_eq!(status, StatusCode::NO_CONTENT);
-  assert_eq!(*h.wa.watched.lock().unwrap(), [A]);
+  assert_eq!(*h.wa.watched.lock().unwrap(), [A, B]);
+
+  // A lista nova substitui a anterior.
+  let body = json!({ "jids": [B] });
+  call(&h, "POST", "/api/presence/watch", Some(body)).await;
+  assert_eq!(*h.wa.watched.lock().unwrap(), [B]);
+}
+
+#[tokio::test]
+async fn watch_refuses_bad_jids_and_caps_the_list() {
+  let h = harness();
+  let body = json!({ "jids": ["sem-arroba"] });
+  let (status, _) = call(&h, "POST", "/api/presence/watch", Some(body)).await;
+  assert_eq!(status, StatusCode::BAD_REQUEST);
+
+  let many: Vec<String> = (0..100).map(|i| format!("{i}@s.whatsapp.net")).collect();
+  let body = json!({ "jids": many });
+  call(&h, "POST", "/api/presence/watch", Some(body)).await;
+  assert_eq!(h.wa.watched.lock().unwrap().len(), 31);
 }
 
 #[tokio::test]
