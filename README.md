@@ -14,7 +14,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
 - Uma barra lateral separa **Conversas**, **Status**, **Canais** e **Arquivadas** (com o número de
   conversas não lidas, ou um ponto nas outras seções); no celular ela fica embaixo. No fim dela, um
   pontinho mostra a conexão: verde conectado, amarelo conectando ou servidor desconectado, vermelho
-  sessão encerrada; passar o mouse (ou tocar, no celular) mostra o texto. O botão de Status abre direto a conversa do Status. Status e
+  sessão encerrada; passar o mouse (ou tocar, no celular) mostra o texto. Logo depois dele fica o
+  botão de **configurações**, com as opções que valem para este navegador. O botão de Status abre direto a conversa do Status. Status e
   canais são só de leitura: daqui não dá para postar um status nem escrever num canal.
 - Busca, no topo da lista, conversas pelo nome (ou número) e mensagens pelo texto, sem ligar para
   maiúsculas nem acentos, em tudo o que já está guardado no servidor (não pergunta ao celular).
@@ -98,7 +99,7 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   você estava escrevendo). Mensagens editadas, aqui ou por quem mandou, mostram "editada" ao lado
   da hora, já com o texto novo.
 - Ao abrir uma conversa, marca as mensagens como lidas (o contato vê os tiques azuis e o contador
-  zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, no topo da lista,
+  zera no celular também). Com a opção **"Não visualizar ao abrir"** marcada, nas configurações,
   abrir não marca nada: só o botão "Marcar como lida" faz isso. O que você lê no celular também
   aparece como lido aqui.
 - Só aparece como "online" para o WhatsApp enquanto você lê uma conversa no app (aba em foco,

@@ -3,6 +3,7 @@ import { api, ApiError, getToken, setToken } from './api/client'
 import type { Chat, ConnState, Live, Message, ServerEvent } from './api/types'
 import { useEvents } from './api/useEvents'
 import { useReading } from './api/useReading'
+import { Settings } from './components/Settings'
 import { ChatList } from './components/ChatList'
 import { ChatMenu, type MenuAction } from './components/ChatMenu'
 import type { FileMeta } from './components/Composer'
@@ -125,6 +126,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [forwarding, setForwarding] = useState<Message | null>(null)
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   const [noRead, setNoRead] = useState(loadNoRead)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState<{ q: string; result: SearchResult | null }>({ q: '', result: null })
   const searching = query.trim().length >= 2
@@ -745,17 +747,11 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
         conn={{ level: connClass, text: connText }}
         notify={notify}
         onToggleNotify={() => void onToggleNotify()}
+        onSettings={() => setSettingsOpen(true)}
       />
       <aside className="sidebar">
         <header className="topbar">
           <h1 className="topbar__title">{SECTION_TITLE[section]}</h1>
-          <label
-            className="toggle"
-            title="Marcado: abrir a conversa não marca as mensagens como lidas (o contato não vê os tiques azuis)"
-          >
-            <input type="checkbox" checked={noRead} onChange={toggleNoRead} />
-            Não visualizar ao abrir
-          </label>
         </header>
         <div className="search">
           <input
@@ -840,6 +836,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           <p className="empty empty--center">Selecione uma conversa.</p>
         )}
       </main>
+      {settingsOpen && <Settings noRead={noRead} onToggleNoRead={toggleNoRead} onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }
