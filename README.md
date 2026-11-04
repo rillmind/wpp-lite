@@ -33,6 +33,8 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   tem conta e abre a conversa com ele.
   Links (`https://…`, `www.…`) abrem numa aba nova do navegador.
 - Mostra as fotos de perfil, que carregam sozinhas.
+- Ao abrir, mostra uma tela de carregamento com o ícone do app, nas cores do tema, até as conversas
+  chegarem.
 - Temas **Catppuccin**, **Gruvbox** e **WhatsApp**, cada um claro ou escuro, ou seguindo o sistema.
   Escolha nas configurações; o padrão é o Catppuccin escuro. Vale só para este navegador.
 - No topo da conversa aberta mostra quando a pessoa está **digitando…** ou **gravando áudio…** (em

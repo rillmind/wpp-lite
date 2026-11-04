@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { api, ApiError, getToken, setToken } from './api/client'
 import type { Chat, ConnState, Live, Message, ServerEvent } from './api/types'
 import { useEvents } from './api/useEvents'
+import { hideSplash } from './api/splash'
 import { useTheme } from './api/theme'
 import { useReading } from './api/useReading'
 import { Settings } from './components/Settings'
@@ -99,6 +100,11 @@ export default function App() {
   const [token, setTokenState] = useState(getToken())
   const [authError, setAuthError] = useState<string | null>(null)
 
+  // Com token, quem tira a tela de carregamento é o Client, quando as conversas chegam.
+  useEffect(() => {
+    if (!token) hideSplash()
+  }, [token])
+
   if (!token) {
     return (
       <Login
@@ -190,7 +196,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   )
 
   const loadChats = useCallback(() => {
-    api.chats().then(setChats, fail)
+    api.chats().then(setChats, fail).finally(hideSplash)
   }, [fail])
 
   const openChat = useCallback(
