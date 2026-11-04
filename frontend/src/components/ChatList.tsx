@@ -2,6 +2,7 @@ import type { Chat, Live, MsgStatus } from '../api/types'
 import { getDraft } from '../api/drafts'
 import { Avatar } from './Avatar'
 import { chatName, formatListTime, formatPerson, liveText } from './format'
+import { Icon } from './Icon'
 
 const TICK_LABEL: Record<MsgStatus, string> = { sent: 'enviada', delivered: 'entregue', read: 'lida' }
 
@@ -55,7 +56,7 @@ export function ChatList({ chats, selected, onSelect, onMenu, live }: Props) {
                         className={c.last_status === 'read' ? 'chat-item__tick chat-item__tick--read' : 'chat-item__tick'}
                         aria-label={TICK_LABEL[c.last_status]}
                       >
-                        {c.last_status === 'sent' ? '✓' : '✓✓'}
+                        <Icon name={c.last_status === 'sent' ? 'check' : 'checks'} size={15} />
                       </span>
                     )}
                     {c.last_sender && c.last_msg_preview && `${formatPerson(c.last_sender)}: `}
@@ -63,28 +64,10 @@ export function ChatList({ chats, selected, onSelect, onMenu, live }: Props) {
                   </span>
                 )}
                 {c.muted && (
-                  <svg className="chat-item__pin" viewBox="0 0 24 24" width="16" height="16" aria-label="Silenciada">
-                    <path
-                      d="M6 16V11a6 6 0 0 1 9-5.2M18 11v5l1.5 2H6M10 20a2 2 0 0 0 4 0M4 4l16 16"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <Icon name="bellOff" size={16} className="chat-item__pin" label="Silenciada" />
                 )}
                 {c.pinned && (
-                  <svg className="chat-item__pin" viewBox="0 0 24 24" width="16" height="16" aria-label="Fixada">
-                    <path
-                      d="M9 4h6l-1 6 3 3v1H7v-1l3-3zM12 14v6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                  <Icon name="pin" size={16} className="chat-item__pin" label="Fixada" />
                 )}
                 {c.unread_count > 0 && (
                   <span className="badge" aria-label={`${c.unread_count} não lidas`}>

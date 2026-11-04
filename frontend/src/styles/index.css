@@ -369,7 +369,6 @@ code {
 }
 .chat-item__tick {
   margin-right: 0.25rem;
-  letter-spacing: -0.2em;
 }
 .chat-item__tick--read {
   color: var(--link);
@@ -463,6 +462,9 @@ code {
 .bubble__text--media {
   font-style: italic;
 }
+.bubble__kind {
+  margin-right: 0.3rem;
+}
 .mention {
   color: var(--link);
   font-weight: 600;
@@ -513,6 +515,7 @@ code {
 .bubble__meta {
   align-self: flex-end;
   display: flex;
+  align-items: center;
   gap: 0.25rem;
   font-size: 0.7rem;
   opacity: 0.8;
@@ -849,7 +852,6 @@ code {
   height: 2.25rem;
   border-radius: 50%;
   background: var(--ctp-surface2);
-  font-size: 1.1rem;
 }
 .media__hint {
   color: var(--fg-muted);
@@ -976,7 +978,6 @@ code {
   align-items: center;
   justify-content: center;
   background: var(--ctp-surface1);
-  font-size: 1.2rem;
 }
 .attachment__name {
   flex: 1;
@@ -996,7 +997,6 @@ code {
   border-radius: 50%;
   color: var(--fg-muted);
   background: transparent;
-  font-size: 1.1rem;
   cursor: pointer;
 }
 .attachment__remove:hover {
@@ -1005,7 +1005,6 @@ code {
 }
 .composer__attach {
   flex: none;
-  font-size: 1.1rem;
 }
 
 .menu__reactions {
@@ -1265,4 +1264,11 @@ code {
 .chat-item__draft {
   color: var(--ok);
   font-weight: 600;
+}
+
+/* Ícones de traço (components/Icon.tsx), alinhados ao texto ao redor */
+.icon {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
 }

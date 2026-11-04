@@ -64,7 +64,7 @@ Cliente de WhatsApp pessoal que roda na sua máquina ou no seu servidor e abre n
   para tirar), o texto escrito vira a legenda do primeiro, e vão ao clicar em "Enviar". JPEG e PNG
   vão como foto, MP4 como vídeo e o resto (inclusive GIF) como documento, até 100 MB.
 - Grava e manda mensagem de voz: com a caixa vazia, o botão de enviar vira um microfone. Segurar e
-  soltar envia; um toque rápido começa a gravar e mostra o tempo, com 🗑 para descartar (ou Esc) e
+  soltar envia; um toque rápido começa a gravar e mostra o tempo, com a lixeira para descartar (ou Esc) e
   "Enviar". Chega como áudio gravado na hora (com a forma de onda), igual ao do celular; menos de
   1 segundo é descartado. Precisa do endereço HTTPS (o navegador só libera o microfone nele).
 - Rascunho por conversa: o que você escreveu e não mandou continua lá quando volta para a conversa

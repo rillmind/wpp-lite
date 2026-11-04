@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import { useImage } from '../api/images'
 import type { Message } from '../api/types'
 import { formatBytes, formatDuration } from './format'
+import { Icon } from './Icon'
 
 const MAX_W = 280
 const MAX_H = 320
@@ -47,7 +48,7 @@ export function MediaView({ chatJid, message }: { chatJid: string; message: Mess
       {attempt === 0 ? (
         <button type="button" className="media__download" onClick={() => setAttempt(1)}>
           <span className="media__icon" aria-hidden="true">
-            {kind === 'audio' || kind === 'video' ? '▶' : kind === 'doc' ? '📄' : '↓'}
+            <Icon name={kind === 'audio' || kind === 'video' ? 'play' : kind === 'doc' ? 'file' : 'download'} size={20} />
           </span>
           <span className="media__label">{[label, ...details].join(' · ')}</span>
           {kind !== 'audio' && kind !== 'doc' && <span className="media__hint">Clique para baixar</span>}
@@ -91,7 +92,7 @@ function Download({ path, kind, label, onRetry }: DownloadProps) {
       return (
         <a ref={save} className="media__download media__saved" href={file.url} download={label}>
           <span className="media__icon" aria-hidden="true">
-            📄
+            <Icon name="file" size={20} />
           </span>
           <span className="media__label">{label}</span>
           <span className="media__hint">Salvar de novo</span>
