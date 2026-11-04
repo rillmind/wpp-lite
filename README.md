@@ -144,14 +144,15 @@ um token uma vez: é o campo `token` de `data/config.toml`.
 
 ### Docker (servidor)
 
-No servidor basta o [`docker-compose.yaml`](docker-compose.yaml); a imagem vem do Docker Hub
-([`softfrost/wpp-lite`](https://hub.docker.com/r/softfrost/wpp-lite), amd64).
+O [`docker-compose.yaml`](docker-compose.yaml) do repositório compila o back e o front do código
+que está aqui, sem esperar a imagem do Docker Hub. Em um servidor sem o código, use o compose de
+[`docs/DOCKERHUB.md`](docs/DOCKERHUB.md), com a imagem
+[`softfrost/wpp-lite`](https://hub.docker.com/r/softfrost/wpp-lite) (amd64).
 
 ```sh
 mkdir -p data && sudo chown 1000:1000 data
-docker compose up -d
+docker compose up -d --build                 # também para atualizar depois de mudar o código
 docker compose logs -f                       # QR do primeiro pareamento
-docker compose pull && docker compose up -d  # atualizar
 ```
 
 Abre em `http://127.0.0.1:8787` no servidor. A porta só escuta em loopback; para acessar de
@@ -165,10 +166,10 @@ privilégio extra), sem `chown`:
 
 ```sh
 printf 'WPP_UID=0\nWPP_GID=0\n' > .env
-podman compose up -d
+podman compose up -d --build
 ```
 
-Variáveis do compose: `WPP_TAG` (`latest`), `WPP_HOST_PORT` (`8787`), `WPP_UID`/`WPP_GID`
+Variáveis do compose: `WPP_HOST_PORT` (`8787`), `WPP_UID`/`WPP_GID`
 (`1000`), `RUST_LOG` (`info`).
 
 **Levar uma sessão já pareada** (sem novo QR): pare a instância antiga, copie o diretório
