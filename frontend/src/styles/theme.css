@@ -1,57 +1,289 @@
-/* Catppuccin Mocha: padrão fixo, independente de prefers-color-scheme. */
+/*
+ * Temas: cada um define a mesma paleta (--pal-*), com os nomes de cor do Catppuccin, e
+ * ajusta os tokens semânticos que precisar. Quem escolhe é `data-theme` no <html>, posto
+ * por api/theme.ts. Sem ele, vale o Catppuccin escuro.
+ */
+
+/* Tokens semânticos: o padrão de todos os temas. */
 :root {
-  --ctp-rosewater: #f5e0dc;
-  --ctp-flamingo: #f2cdcd;
-  --ctp-pink: #f5c2e7;
-  --ctp-mauve: #cba6f7;
-  --ctp-red: #f38ba8;
-  --ctp-maroon: #eba0ac;
-  --ctp-peach: #fab387;
-  --ctp-yellow: #f9e2af;
-  --ctp-green: #a6e3a1;
-  --ctp-teal: #94e2d5;
-  --ctp-sky: #89dceb;
-  --ctp-sapphire: #74c7ec;
-  --ctp-blue: #89b4fa;
-  --ctp-lavender: #b4befe;
-  --ctp-text: #cdd6f4;
-  --ctp-subtext1: #bac2de;
-  --ctp-subtext0: #a6adc8;
-  --ctp-overlay2: #9399b2;
-  --ctp-overlay1: #7f849c;
-  --ctp-overlay0: #6c7086;
-  --ctp-surface2: #585b70;
-  --ctp-surface1: #45475a;
-  --ctp-surface0: #313244;
-  --ctp-base: #1e1e2e;
-  --ctp-mantle: #181825;
-  --ctp-crust: #11111b;
-
-  color-scheme: dark;
-
-  /* Tokens semânticos (plano, seção 6.1). Contrastes conferidos >= WCAG AA:
-     text/surface0 ~9:1, crust/mauve ~10:1, subtext0/mantle ~8:1. */
-  --bg-conversation: var(--ctp-base);
-  --bg-sidebar: var(--ctp-mantle);
-  --bg-bar: var(--ctp-crust);
-  --bg-hover: var(--ctp-surface0);
-  --bg-selected: var(--ctp-surface1);
-  --fg: var(--ctp-text);
-  --fg-muted: var(--ctp-subtext0);
-  --bubble-in: var(--ctp-surface0);
-  --bubble-in-fg: var(--ctp-text);
-  --bubble-out: var(--ctp-mauve);
-  --bubble-out-fg: var(--ctp-crust);
-  /* Tique azul de "lida" no balão enviado: o azul do Mocha some no lilás (1:1);
-     este é azul de verdade com 4,1:1 sobre --bubble-out. */
+  --bg-conversation: var(--pal-base);
+  --bg-sidebar: var(--pal-mantle);
+  --bg-bar: var(--pal-crust);
+  --bg-hover: var(--pal-surface0);
+  --bg-selected: var(--pal-surface1);
+  --fg: var(--pal-text);
+  --fg-muted: var(--pal-subtext0);
+  --bubble-in: var(--pal-surface0);
+  --bubble-in-fg: var(--pal-text);
+  --bubble-out: var(--pal-mauve);
+  --bubble-out-fg: var(--pal-crust);
+  /* Tique de "lida" e links no balão enviado: precisa aparecer sobre --bubble-out. */
   --tick-read-out: #1543b8;
-  --accent: var(--ctp-mauve);
-  --accent-fg: var(--ctp-crust);
-  --unread: var(--ctp-lavender);
-  --ok: var(--ctp-green);
-  --err: var(--ctp-red);
-  --warn: var(--ctp-yellow);
-  --link: var(--ctp-blue);
-  --focus: var(--ctp-blue);
-  --border: var(--ctp-surface1);
+  --accent: var(--pal-mauve);
+  --accent-fg: var(--pal-crust);
+  --accent-hover: var(--pal-lavender);
+  /* Texto sobre as cores da paleta (iniciais da foto, botão de perigo). */
+  --on-color: var(--pal-crust);
+  --unread: var(--pal-lavender);
+  --ok: var(--pal-green);
+  --err: var(--pal-red);
+  --warn: var(--pal-yellow);
+  --link: var(--pal-blue);
+  --focus: var(--pal-blue);
+  --border: var(--pal-surface1);
+  /* Sombras e fundo atrás das janelas. */
+  --shade: 17 17 27;
+  /* Fundo da citação e das reações, por cima do balão. */
+  --tint-quote: rgb(17 17 27 / 0.18);
+  --tint-chip: rgb(17 17 27 / 0.35);
+}
+
+/* Catppuccin Mocha */
+:root,
+:root[data-theme='catppuccin-dark'] {
+  color-scheme: dark;
+  --pal-rosewater: #f5e0dc;
+  --pal-flamingo: #f2cdcd;
+  --pal-pink: #f5c2e7;
+  --pal-mauve: #cba6f7;
+  --pal-red: #f38ba8;
+  --pal-maroon: #eba0ac;
+  --pal-peach: #fab387;
+  --pal-yellow: #f9e2af;
+  --pal-green: #a6e3a1;
+  --pal-teal: #94e2d5;
+  --pal-sky: #89dceb;
+  --pal-sapphire: #74c7ec;
+  --pal-blue: #89b4fa;
+  --pal-lavender: #b4befe;
+  --pal-text: #cdd6f4;
+  --pal-subtext1: #bac2de;
+  --pal-subtext0: #a6adc8;
+  --pal-overlay2: #9399b2;
+  --pal-overlay1: #7f849c;
+  --pal-overlay0: #6c7086;
+  --pal-surface2: #585b70;
+  --pal-surface1: #45475a;
+  --pal-surface0: #313244;
+  --pal-base: #1e1e2e;
+  --pal-mantle: #181825;
+  --pal-crust: #11111b;
+}
+
+/* Catppuccin Latte */
+:root[data-theme='catppuccin-light'] {
+  color-scheme: light;
+  --pal-rosewater: #c4604c;
+  --pal-flamingo: #c75c5c;
+  --pal-pink: #c43f9f;
+  --pal-mauve: #8839ef;
+  --pal-red: #d20f39;
+  --pal-maroon: #d13a47;
+  --pal-peach: #c9500a;
+  --pal-yellow: #a66a10;
+  --pal-green: #2f7d1f;
+  --pal-teal: #117a80;
+  --pal-sky: #0478a8;
+  --pal-sapphire: #1a7d90;
+  --pal-blue: #1e66f5;
+  --pal-lavender: #5a6fe8;
+  --pal-text: #4c4f69;
+  --pal-subtext1: #5c5f77;
+  --pal-subtext0: #5f6278;
+  --pal-overlay2: #7c7f93;
+  --pal-overlay1: #6c6f85;
+  --pal-overlay0: #9ca0b0;
+  --pal-surface2: #acb0be;
+  --pal-surface1: #bcc0cc;
+  --pal-surface0: #ccd0da;
+  --pal-base: #eff1f5;
+  --pal-mantle: #e6e9ef;
+  --pal-crust: #dce0e8;
+  --bubble-out-fg: #ffffff;
+  --bubble-in: #ffffff;
+  --bg-selected: var(--pal-surface0);
+  --accent-hover: #7a2ee0;
+  --link: #1550c8;
+  --focus: #1550c8;
+  --ok: #256b17;
+  --unread: #4256c9;
+  --err: #b80d32;
+  --accent-fg: #ffffff;
+  --on-color: #ffffff;
+  --tick-read-out: #cfe3ff;
+  --shade: 76 79 105;
+  --tint-quote: rgb(0 0 0 / 0.08);
+  --tint-chip: rgb(0 0 0 / 0.1);
+}
+
+/* Gruvbox escuro */
+:root[data-theme='gruvbox-dark'] {
+  color-scheme: dark;
+  --pal-rosewater: #f2b8a2;
+  --pal-flamingo: #ea6962;
+  --pal-pink: #d3869b;
+  --pal-mauve: #c98bb9;
+  --pal-red: #fb4934;
+  --pal-maroon: #e8836b;
+  --pal-peach: #fe8019;
+  --pal-yellow: #fabd2f;
+  --pal-green: #b8bb26;
+  --pal-teal: #8ec07c;
+  --pal-sky: #8bba9f;
+  --pal-sapphire: #7daea3;
+  --pal-blue: #83a598;
+  --pal-lavender: #b5a4c9;
+  --pal-text: #ebdbb2;
+  --pal-subtext1: #d5c4a1;
+  --pal-subtext0: #bdae93;
+  --pal-overlay2: #a89984;
+  --pal-overlay1: #928374;
+  --pal-overlay0: #7c6f64;
+  --pal-surface2: #665c54;
+  --pal-surface1: #504945;
+  --pal-surface0: #3c3836;
+  --pal-base: #282828;
+  --pal-mantle: #1d2021;
+  --pal-crust: #171a1b;
+  --bubble-out: #d79921;
+  --accent: #fe8019;
+  --accent-hover: #fabd2f;
+  --unread: #fabd2f;
+  --tick-read-out: #063f4a;
+  --link: #9dbfb0;
+  --focus: #9dbfb0;
+  --shade: 23 26 27;
+}
+
+/* Gruvbox claro */
+:root[data-theme='gruvbox-light'] {
+  color-scheme: light;
+  --pal-rosewater: #a8503a;
+  --pal-flamingo: #b84545;
+  --pal-pink: #a8557c;
+  --pal-mauve: #8f3f71;
+  --pal-red: #9d0006;
+  --pal-maroon: #a83a2a;
+  --pal-peach: #af3a03;
+  --pal-yellow: #8a5a0a;
+  --pal-green: #79740e;
+  --pal-teal: #427b58;
+  --pal-sky: #2f7a6f;
+  --pal-sapphire: #076678;
+  --pal-blue: #2d5f8a;
+  --pal-lavender: #6b4f8f;
+  --pal-text: #3c3836;
+  --pal-subtext1: #504945;
+  --pal-subtext0: #665c54;
+  --pal-overlay2: #7c6f64;
+  --pal-overlay1: #7c6f64;
+  --pal-overlay0: #a89984;
+  --pal-surface2: #bdae93;
+  --pal-surface1: #d5c4a1;
+  --pal-surface0: #ebdbb2;
+  --pal-base: #fbf1c7;
+  --pal-mantle: #f2e5bc;
+  --pal-crust: #ebdbb2;
+  --bubble-out: #af3a03;
+  --bubble-out-fg: #fbf1c7;
+  --accent: #af3a03;
+  --accent-fg: #fbf1c7;
+  --accent-hover: #9d0006;
+  --on-color: #fbf1c7;
+  --unread: #af3a03;
+  --ok: #5f5b0a;
+  --tick-read-out: #bfe3e8;
+  --shade: 60 56 54;
+  --tint-quote: rgb(0 0 0 / 0.08);
+  --tint-chip: rgb(0 0 0 / 0.1);
+}
+
+/* WhatsApp escuro */
+:root[data-theme='whatsapp-dark'] {
+  color-scheme: dark;
+  --pal-rosewater: #f7b6a3;
+  --pal-flamingo: #ff9d9d;
+  --pal-pink: #ff7eb6;
+  --pal-mauve: #b794f6;
+  --pal-red: #ff6b6b;
+  --pal-maroon: #ef8a80;
+  --pal-peach: #ffa45c;
+  --pal-yellow: #ffd279;
+  --pal-green: #25d366;
+  --pal-teal: #2fd4c0;
+  --pal-sky: #53bdeb;
+  --pal-sapphire: #4fb3d9;
+  --pal-blue: #7aa7ff;
+  --pal-lavender: #b8b5ff;
+  --pal-text: #e9edef;
+  --pal-subtext1: #d1d7db;
+  --pal-subtext0: #8696a0;
+  --pal-overlay2: #8696a0;
+  --pal-overlay1: #8696a0;
+  --pal-overlay0: #54656f;
+  --pal-surface2: #3b4a54;
+  --pal-surface1: #2a3942;
+  --pal-surface0: #202c33;
+  --pal-base: #0b141a;
+  --pal-mantle: #111b21;
+  --pal-crust: #0b141a;
+  --bg-bar: #202c33;
+  --bubble-out: #005c4b;
+  --bubble-out-fg: #e9edef;
+  --tick-read-out: #53bdeb;
+  --accent: #00a884;
+  --accent-fg: #0b141a;
+  --accent-hover: #06cf9c;
+  --unread: #00a884;
+  --link: #53bdeb;
+  --focus: #53bdeb;
+  --shade: 11 20 26;
+}
+
+/* WhatsApp claro */
+:root[data-theme='whatsapp-light'] {
+  color-scheme: light;
+  --pal-rosewater: #b5533c;
+  --pal-flamingo: #c74b50;
+  --pal-pink: #c2377e;
+  --pal-mauve: #7e4fc9;
+  --pal-red: #c62828;
+  --pal-maroon: #a8443c;
+  --pal-peach: #c25a00;
+  --pal-yellow: #8f6a00;
+  --pal-green: #0f8a3c;
+  --pal-teal: #00796b;
+  --pal-sky: #0277a8;
+  --pal-sapphire: #1b6d8f;
+  --pal-blue: #1f5fbf;
+  --pal-lavender: #5a5fc7;
+  --pal-text: #111b21;
+  --pal-subtext1: #3b4a54;
+  --pal-subtext0: #54656f;
+  --pal-overlay2: #667781;
+  --pal-overlay1: #667781;
+  --pal-overlay0: #aebac1;
+  --pal-surface2: #d1d7db;
+  --pal-surface1: #e9edef;
+  --pal-surface0: #f0f2f5;
+  --pal-base: #efeae2;
+  --pal-mantle: #ffffff;
+  --pal-crust: #f0f2f5;
+  --bg-hover: #f5f6f6;
+  --bubble-in: #ffffff;
+  --bubble-out: #d9fdd3;
+  --bubble-out-fg: #111b21;
+  --tick-read-out: #027eb5;
+  --accent: #008069;
+  --accent-fg: #ffffff;
+  --accent-hover: #006d5b;
+  --on-color: #ffffff;
+  --unread: #008069;
+  --link: #0269a0;
+  --focus: #0269a0;
+  --ok: #0b7a34;
+  --border: #d1d7db;
+  --shade: 11 20 26;
+  --tint-quote: rgb(0 0 0 / 0.05);
+  --tint-chip: rgb(0 0 0 / 0.07);
 }

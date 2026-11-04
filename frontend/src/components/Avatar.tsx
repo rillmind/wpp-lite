@@ -9,7 +9,7 @@ interface Props {
   size?: 'md' | 'sm' | 'xs'
 }
 
-// Mesmas cores para o mesmo contato, da paleta Mocha.
+// Mesmas cores para o mesmo contato, da paleta do tema.
 const COLORS = ['mauve', 'blue', 'teal', 'green', 'peach', 'pink', 'sapphire', 'yellow']
 
 function initials(name: string): string {

@@ -158,7 +158,7 @@ export function Conversation({
   const senderColor = (s: string | null) => {
     const n = s != null ? assigned[s] : undefined
     if (n == null || conv.palette.length === 0) return undefined
-    return `var(--ctp-${SENDER_COLORS[conv.palette[n % conv.palette.length]]})`
+    return `var(--pal-${SENDER_COLORS[conv.palette[n % conv.palette.length]]})`
   }
   const scroller = useRef<HTMLDivElement>(null)
   const positioned = useRef<string | null>(null)

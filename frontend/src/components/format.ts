@@ -239,7 +239,7 @@ export async function copyText(text: string): Promise<void> {
   if (!ok) throw new Error('Não foi possível copiar')
 }
 
-/** Cores de destaque do Catppuccin Mocha para os nomes em grupos. */
+/** Cores de destaque do tema para os nomes em grupos. */
 export const SENDER_COLORS = [
   'rosewater',
   'flamingo',
