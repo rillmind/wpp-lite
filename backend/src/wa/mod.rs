@@ -226,9 +226,9 @@ pub trait WhatsApp: Send + Sync {
   /// `@lid`, quando o servidor informa.
   async fn lookup_phone(&self, digits: &str) -> Result<Option<(String, Option<String>)>>;
 
-  /// Passa a receber "online" e "digitando…" desta conversa individual (deixa de
-  /// acompanhar a anterior). Só o que os outros fazem: o nosso "digitando" nunca é enviado.
-  async fn watch_presence(&self, chat_jid: &str) -> Result<()>;
+  /// Passa a receber "online" e "digitando…" destas conversas individuais (deixa de
+  /// acompanhar as outras). Só o que os outros fazem: o nosso "digitando" nunca é enviado.
+  async fn watch_presence(&self, chat_jids: &[String]) -> Result<()>;
 
   /// Alguém está (ou deixou de estar) lendo uma conversa no app. Só nesse caso o
   /// aparelho aparece online, para não silenciar as notificações do celular. O aviso

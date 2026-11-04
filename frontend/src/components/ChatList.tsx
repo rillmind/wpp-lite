@@ -14,9 +14,11 @@ interface Props {
   onMenu: (chat: Chat, x: number, y: number) => void
   /** "digitando…" por conversa. */
   live: Record<string, Live>
+  /** Mostra o "digitando…" também nas conversas fechadas. */
+  typingInList: boolean
 }
 
-export function ChatList({ chats, selected, onSelect, onMenu, live }: Props) {
+export function ChatList({ chats, selected, onSelect, onMenu, live, typingInList }: Props) {
   if (chats.length === 0) {
     return <p className="empty">Nenhuma conversa ainda. Elas aparecem aqui assim que chegarem.</p>
   }
@@ -43,7 +45,7 @@ export function ChatList({ chats, selected, onSelect, onMenu, live }: Props) {
                 </span>
               </span>
               <span className="chat-item__bottom">
-                {live[c.jid]?.typing ? (
+                {live[c.jid]?.typing && (typingInList || c.jid === selected) ? (
                   <span className="chat-item__preview chat-item__typing">{liveText({ typing: live[c.jid].typing })}</span>
                 ) : c.jid !== selected && getDraft(c.jid) ? (
                   <span className="chat-item__preview">

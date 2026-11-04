@@ -7,12 +7,12 @@ const IDLE_MS = 2 * 60_000
 const RENEW_MS = 20_000
 
 /**
- * Enquanto há uma conversa aberta, com a aba visível e em foco e a pessoa mexendo, o
- * servidor aparece online e o WhatsApp não faz o celular vibrar. Fora disso, offline.
+ * Enquanto `active`, com a aba visível e em foco e a pessoa mexendo, o servidor aparece
+ * online e o WhatsApp não faz o celular vibrar. Fora disso, offline.
  */
-export function useReading(chatOpen: boolean) {
+export function useReading(active: boolean) {
   useEffect(() => {
-    if (!chatOpen) return
+    if (!active) return
     let lastInput = Date.now()
     let reading = false
 
@@ -46,5 +46,5 @@ export function useReading(chatOpen: boolean) {
       window.removeEventListener('pagehide', update)
       if (reading) sendReading(false)
     }
-  }, [chatOpen])
+  }, [active])
 }

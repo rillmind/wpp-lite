@@ -54,7 +54,6 @@ pub fn router(
     .route("/api/chats/{jid}/messages", get(handlers::messages))
     .route("/api/chats/{jid}/load-older", post(handlers::load_older))
     .route("/api/chats/{jid}/read", post(handlers::mark_read))
-    .route("/api/chats/{jid}/watch", post(handlers::watch))
     .route("/api/chats/{jid}/action", post(handlers::chat_action))
     .route("/api/chats/{jid}/send", post(handlers::send))
     .route(
@@ -79,6 +78,7 @@ pub fn router(
     .route("/api/people/{jid}/chat", get(handlers::person_chat))
     .route("/api/phones/{digits}/chat", get(handlers::phone_chat))
     .route("/api/presence", post(handlers::presence))
+    .route("/api/presence/watch", post(handlers::watch))
     .route("/api/events", get(handlers::events))
     .route_layer(middleware::from_fn_with_state(state.clone(), auth))
     // Fora da autenticação: só diz que o processo responde (healthcheck do container).
