@@ -78,7 +78,8 @@ code {
 .app {
   display: grid;
   grid-template-columns: auto minmax(280px, 30%) 1fr;
-  height: 100%;
+  /* Altura da área visível (some o teclado do celular); ver api/mobile.ts. */
+  height: var(--app-height, 100%);
 }
 
 /* Barra lateral de atalhos */
@@ -1248,7 +1249,7 @@ code {
 /* "digitando…" no topo da conversa e na lista */
 .topbar__sub--typing,
 .chat-item__typing {
-  color: var(--ok);
+  color: var(--pal-mauve);
 }
 
 /* Gravando mensagem de voz */
