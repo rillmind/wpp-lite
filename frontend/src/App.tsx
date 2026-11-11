@@ -5,6 +5,7 @@ import { useEvents } from './api/useEvents'
 import { hideSplash } from './api/splash'
 import { useTheme } from './api/theme'
 import { useReading } from './api/useReading'
+import { useBackButton } from './api/mobile'
 import { Settings } from './components/Settings'
 import { ChatList } from './components/ChatList'
 import { ChatMenu, type MenuAction } from './components/ChatMenu'
@@ -407,6 +408,17 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     setReplyTo(null)
     setEditing(null)
   }, [])
+
+  // Voltar do celular: fecha o que estiver por cima, um passo por vez, até a tela inicial
+  // (lista de conversas); dali não faz nada, para não sair do app.
+  useBackButton(() => {
+    if (confirm) setConfirm(null)
+    else if (forwarding) setForwarding(null)
+    else if (menu) setMenu(null)
+    else if (settingsOpen) setSettingsOpen(false)
+    else if (selected) closeChat()
+    else if (section !== 'chats') setSection('chats')
+  })
 
   // Esc dentro de uma conversa, um passo por vez: desmarca a resposta (o foco fica na
   // caixa); depois sai da caixa de mensagem; depois volta para a tela inicial.
