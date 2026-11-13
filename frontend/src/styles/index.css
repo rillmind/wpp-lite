@@ -257,12 +257,13 @@ code {
 
 /* Busca (conversas e mensagens do banco local) */
 .search {
+  position: relative;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
 }
 .search__input {
   width: 100%;
-  padding: 0.45rem 0.75rem;
+  padding: 0.45rem 2.2rem 0.45rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-hover);
@@ -273,6 +274,30 @@ code {
 .search__input:focus {
   outline: none;
   border-color: var(--accent);
+}
+/* O "x" do navegador some: o botão abaixo aparece mesmo sem foco. */
+.search__input::-webkit-search-cancel-button {
+  display: none;
+}
+.search__clear {
+  position: absolute;
+  top: 50%;
+  right: 1.1rem;
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--fg-muted);
+  background: transparent;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+.search__clear:hover {
+  color: var(--fg);
+  background: var(--pal-surface1);
 }
 .search-results__title {
   margin: 0;

@@ -30,6 +30,7 @@ import {
   withMentionNames,
   type Section,
 } from './components/format'
+import { Icon } from './components/Icon'
 import { Rail } from './components/Rail'
 import { SearchResults, type SearchResult } from './components/SearchResults'
 import type { Recorded } from './api/voice'
@@ -837,6 +838,18 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
               else e.currentTarget.blur()
             }}
           />
+          {/* Aparece sempre que há texto, com ou sem foco na busca. */}
+          {query && (
+            <button
+              type="button"
+              className="search__clear"
+              aria-label="Apagar busca"
+              title="Apagar busca"
+              onClick={() => setQuery('')}
+            >
+              <Icon name="close" size={16} />
+            </button>
+          )}
         </div>
         {searching ? (
           <SearchResults
