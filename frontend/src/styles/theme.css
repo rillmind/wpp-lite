@@ -68,6 +68,14 @@
   --pal-base: #1e1e2e;
   --pal-mantle: #181825;
   --pal-crust: #11111b;
+  /* Mauve do Catppuccin Frappé: menos claro, para o balão grande cansar menos a vista. */
+  --pal-mauve-frappe: #ca9ee6;
+}
+
+/* Só no Mocha: o balão enviado usa o mauve do Frappé (o --pal-mauve continua o do Mocha). */
+:root:not([data-theme]),
+:root[data-theme='catppuccin-dark'] {
+  --bubble-out: var(--pal-mauve-frappe);
 }
 
 /* Catppuccin Latte */
@@ -153,6 +161,12 @@
   --link: #9dbfb0;
   --focus: #9dbfb0;
   --shade: 23 26 27;
+  /* Sugestão em teste: balão enviado em verde-água escuro (o aqua do Gruvbox, escurecido),
+     com texto claro. O amarelo de antes (#d79921, acima) fica; para voltar a ele, apague
+     estas três linhas. */
+  --bubble-out: #3b6f4f;
+  --bubble-out-fg: #fbf1c7;
+  --tick-read-out: #bfe3e8;
 }
 
 /* Gruvbox claro */
