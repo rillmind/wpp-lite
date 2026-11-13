@@ -29,6 +29,8 @@ export interface Chat {
   pinned: boolean
   /** Silenciada no celular. */
   muted: boolean
+  /** Excluída no app e sem mensagem nova desde então: fica fora da lista. */
+  deleted: boolean
 }
 
 export interface Message {

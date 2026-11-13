@@ -24,7 +24,7 @@ pub enum ApiEvent {
   MessageDeleted { chat_jid: String, id: String },
   #[serde(rename = "chat.updated")]
   ChatUpdated(ChatSummary),
-  /// A conversa foi apagada no celular e saiu da lista.
+  /// A conversa saiu da lista (apagada no celular ou excluída no app).
   #[serde(rename = "chat.deleted")]
   ChatDeleted { jid: String },
   /// Chegaram mensagens antigas pedidas ao celular ("carregar mensagens").

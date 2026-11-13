@@ -42,7 +42,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `GET /api/chats/{jid}/avatar` | foto de perfil, buscada na hora; `204` se não houver |
 | `POST /api/presence/watch` | `{ "jids": [...] }`: passa a receber "online" e "digitando…" destas conversas individuais, até 31 (deixa de acompanhar as outras); chegam como `chat.presence` e `chat.typing` no SSE |
 | `POST /api/chats/{jid}/read` | recibos de leitura + marca lido no celular |
-| `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread", "hours"? }` (`hours` só em `mute`; sem ele, para sempre). `archive`/`unarchive` ficam só no app |
+| `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread" \| "delete", "hours"? }` (`hours` só em `mute`; sem ele, para sempre). `archive`/`unarchive` e `delete` ficam só no app; `delete` tira a conversa da lista e esconde as mensagens até ali, sem apagar do banco, e ela volta com a próxima mensagem |
 | `POST /api/chats/{jid}/send` | `{ "text": "...", "reply_to"? }`, uma mensagem por requisição; `reply_to` cita outra mensagem da conversa |
 | `POST /api/chats/{jid}/messages/{id}/action` | `{ "action": "star" \| "unstar" \| "pin" \| "unpin" \| "delete_me" \| "delete_all" \| "report", "days"? }` (`days` 1, 7 ou 30 em `pin`) |
 | `POST /api/chats/{jid}/messages/{id}/react` | `{ "emoji": "👍" }`; vazio tira a reação. Manda ao WhatsApp e devolve a mensagem com `reactions` (uma por pessoa; `sender_jid: null` = você) |

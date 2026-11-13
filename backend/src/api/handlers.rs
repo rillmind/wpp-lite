@@ -376,6 +376,9 @@ pub async fn chat_action(
   Json(body): Json<ActionBody>,
 ) -> ApiResult<Json<ChatSummary>> {
   validate_jid(&jid)?;
+  if body.action == "delete" {
+    return delete_chat(st, jid).await;
+  }
   let action = match (body.action.as_str(), body.hours) {
     ("archive", _) => ChatAction::Archive(true),
     ("unarchive", _) => ChatAction::Archive(false),
@@ -410,6 +413,24 @@ pub async fn chat_action(
     .await?
     .ok_or(ApiError::NotFound)?;
   let _ = st.events.send(ApiEvent::ChatUpdated(chat.clone()));
+  Ok(Json(chat))
+}
+
+/// Excluir fica só no app (o celular não é avisado) e nada sai do banco.
+async fn delete_chat(st: AppState, jid: String) -> ApiResult<Json<ChatSummary>> {
+  let j = jid.clone();
+  let chat = st
+    .store
+    .run(move |db| {
+      if db.get_chat(&j)?.is_none() {
+        return Ok(None);
+      }
+      db.delete_chat_app(&j)?;
+      db.get_chat(&j)
+    })
+    .await?
+    .ok_or(ApiError::NotFound)?;
+  let _ = st.events.send(ApiEvent::ChatDeleted { jid });
   Ok(Json(chat))
 }
 

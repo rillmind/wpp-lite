@@ -108,6 +108,9 @@ pub(super) const MIGRATIONS: &[&str] = &[
    );",
   // 13: mensagem editada por quem mandou (o corpo guardado já é o texto novo).
   "ALTER TABLE messages ADD COLUMN edited INTEGER NOT NULL DEFAULT 0;",
+  // 14: conversa excluída só no app (segundos): as mensagens até ali continuam guardadas,
+  // mas não aparecem, e a conversa sai da lista até chegar uma mensagem mais nova.
+  "ALTER TABLE chats ADD COLUMN deleted_ts INTEGER;",
 ];
 
 pub fn run(conn: &mut Connection) -> Result<()> {

@@ -37,6 +37,8 @@ pub struct ChatSummary {
   pub pinned: bool,
   /// Silenciada agora (notificações desligadas no celular).
   pub muted: bool,
+  /// Excluída no app e sem mensagem nova desde então: fica fora da lista.
+  pub deleted: bool,
   /// Jid de quem mandou a última mensagem do grupo (`""` = nós); vira `last_sender`.
   #[serde(skip)]
   last_sender_jid: Option<String>,
@@ -348,6 +350,19 @@ impl Db {
     Ok(removed)
   }
 
+  /// Exclui a conversa só no app: sai da lista e as mensagens até agora deixam de aparecer,
+  /// mas continuam no banco. Volta, só com as novas, quando chegar outra mensagem.
+  pub fn delete_chat_app(&self, chat_jid: &str) -> Result<()> {
+    self.conn.execute(
+      "UPDATE chats SET unread_count = 0,
+         deleted_ts = MAX(COALESCE(last_msg_ts, 0),
+           COALESCE((SELECT MAX(ts) FROM messages WHERE chat_jid = ?1), 0))
+       WHERE jid = ?1",
+      params![chat_jid],
+    )?;
+    Ok(())
+  }
+
   /// Arquivamento feito no celular. Arquivar lá vale também aqui (por cima da escolha do
   /// app); desarquivar lá não mexe numa conversa arquivada aqui.
   pub fn set_phone_archived(&self, chat_jid: &str, archived: bool) -> Result<()> {
@@ -390,10 +405,11 @@ impl Db {
 
   /// Mensagens recebidas não lidas, da mais antiga para a mais nova.
   pub fn unread_messages(&self, chat_jid: &str) -> Result<Vec<UnreadMsg>> {
-    let mut stmt = self.conn.prepare(
-      "SELECT id, sender_jid FROM messages
-       WHERE chat_jid = ?1 AND from_me = 0 AND is_read = 0 ORDER BY ts, rowid",
-    )?;
+    let mut stmt = self.conn.prepare(&format!(
+      "SELECT id, sender_jid FROM messages m
+       WHERE m.chat_jid = ?1 AND m.from_me = 0 AND m.is_read = 0 AND {VISIBLE}
+       ORDER BY m.ts, m.rowid"
+    ))?;
     let rows = stmt.query_map(params![chat_jid], |r| {
       Ok(UnreadMsg {
         id: r.get(0)?,
@@ -516,13 +532,16 @@ impl Db {
   }
 
   /// Mensagem mais antiga guardada da conversa (ponto de partida para pedir as anteriores).
+  /// Numa conversa excluída no app não há: o que veio antes da exclusão não aparece mais.
   pub fn oldest_message(&self, chat_jid: &str) -> Result<Option<Message>> {
     Ok(
       self
         .conn
         .query_row(
           &format!(
-            "{} WHERE m.chat_jid = ?1 ORDER BY m.ts ASC, m.rowid ASC LIMIT 1",
+            "{} WHERE m.chat_jid = ?1
+               AND NOT EXISTS (SELECT 1 FROM chats del WHERE del.jid = ?1 AND del.deleted_ts IS NOT NULL)
+             ORDER BY m.ts ASC, m.rowid ASC LIMIT 1",
             msg_select()
           ),
           params![chat_jid],
@@ -791,7 +810,7 @@ impl Db {
       "FROM chats c",
       "FROM (SELECT ?1 AS jid, NULL AS name, 0 AS is_group, 0 AS unread_count,
                NULL AS last_msg_ts, NULL AS last_msg_preview, 0 AS archived,
-               NULL AS archived_app, 0 AS pinned, NULL AS muted_until) c",
+               NULL AS archived_app, 0 AS pinned, NULL AS muted_until, NULL AS deleted_ts) c",
     );
     Ok(self.conn.query_row(&sql, params![target], chat_from_row)?)
   }
@@ -880,7 +899,7 @@ impl Db {
   pub fn list_chats(&self, limit: u32, before_ts: Option<i64>) -> Result<Vec<ChatSummary>> {
     let mut stmt = self.conn.prepare(&format!(
       "{CHAT_SELECT}
-       WHERE (?1 IS NULL OR c.last_msg_ts < ?1)
+       WHERE (?1 IS NULL OR c.last_msg_ts < ?1) AND NOT {CHAT_DELETED}
        ORDER BY c.pinned DESC, c.last_msg_ts IS NULL, c.last_msg_ts DESC
        LIMIT ?2"
     ))?;
@@ -896,7 +915,7 @@ impl Db {
     before: Option<i64>,
   ) -> Result<Vec<Message>> {
     let mut stmt = self.conn.prepare(&format!(
-      "{} WHERE m.chat_jid = ?1 AND m.hidden = 0 AND (?2 IS NULL OR m.ts < ?2)
+      "{} WHERE m.chat_jid = ?1 AND m.hidden = 0 AND {VISIBLE} AND (?2 IS NULL OR m.ts < ?2)
        ORDER BY m.ts DESC, m.rowid DESC
        LIMIT ?3",
       msg_select()
@@ -936,7 +955,7 @@ impl Db {
   /// sem ligar para maiúsculas nem acentos. Só as que aparecem na conversa.
   pub fn search_messages(&self, query: &str, limit: u32) -> Result<Vec<Message>> {
     let mut stmt = self.conn.prepare(&format!(
-      "{} WHERE m.hidden = 0 AND m.kind <> 'revoked' AND m.body IS NOT NULL
+      "{} WHERE m.hidden = 0 AND {VISIBLE} AND m.kind <> 'revoked' AND m.body IS NOT NULL
          AND instr(fold(m.body), ?1) > 0
        ORDER BY m.ts DESC, m.rowid DESC
        LIMIT ?2",
@@ -955,7 +974,7 @@ impl Db {
         .conn
         .query_row(
           &format!(
-            "{} WHERE m.chat_jid = ?1 AND m.from_me = 0 AND m.is_read = 0
+            "{} WHERE m.chat_jid = ?1 AND m.from_me = 0 AND m.is_read = 0 AND {VISIBLE}
              ORDER BY m.ts ASC, m.rowid ASC
              LIMIT 1",
             msg_select()
@@ -970,7 +989,10 @@ impl Db {
   /// Quantas mensagens existem a partir de `ts` (inclusive), para cobrir todas as não lidas.
   pub fn count_since(&self, chat_jid: &str, ts: i64) -> Result<u32> {
     Ok(self.conn.query_row(
-      "SELECT COUNT(*) FROM messages WHERE chat_jid = ?1 AND hidden = 0 AND ts >= ?2",
+      &format!(
+        "SELECT COUNT(*) FROM messages m
+         WHERE m.chat_jid = ?1 AND m.hidden = 0 AND {VISIBLE} AND m.ts >= ?2"
+      ),
       params![chat_jid, ts],
       |r| r.get(0),
     )?)
@@ -1087,6 +1109,14 @@ fn put_reaction(
   Ok(())
 }
 
+/// Conversa excluída no app sem mensagem nova desde então (`c` = chats).
+const CHAT_DELETED: &str =
+  "(c.deleted_ts IS NOT NULL AND COALESCE(c.last_msg_ts, 0) <= c.deleted_ts)";
+
+/// A mensagem (`m`) aparece: não é de antes de a conversa ser excluída no app.
+const VISIBLE: &str =
+  "NOT EXISTS (SELECT 1 FROM chats del WHERE del.jid = m.chat_jid AND m.ts <= del.deleted_ts)";
+
 // Nome de conversa individual: agenda (pelo telefone, senão pelo próprio jid), depois
 // apelido (o do jid da conversa é o mais recente), depois o que veio do histórico.
 const CHAT_SELECT: &str = "SELECT c.jid,
@@ -1102,7 +1132,8 @@ const CHAT_SELECT: &str = "SELECT c.jid,
        (SELECT CASE WHEN lm3.from_me THEN '' ELSE lm3.sender_jid END FROM messages lm3
          WHERE lm3.chat_jid = c.jid ORDER BY lm3.ts DESC, lm3.rowid DESC LIMIT 1)
      END,
-     c.muted_until
+     c.muted_until,
+     c.deleted_ts IS NOT NULL AND COALESCE(c.last_msg_ts, 0) <= c.deleted_ts
    FROM chats c
    LEFT JOIN lid_map lm ON lm.lid = c.jid
    LEFT JOIN contacts dc ON dc.jid = c.jid
@@ -1181,6 +1212,7 @@ fn chat_from_row(r: &Row<'_>) -> rusqlite::Result<ChatSummary> {
     last_sender: None,
     last_sender_jid: r.get(10)?,
     muted: is_muted(r.get(11)?),
+    deleted: r.get(12)?,
   })
 }
 
