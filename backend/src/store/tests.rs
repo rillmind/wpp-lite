@@ -656,8 +656,14 @@ fn deleted_in_app_hides_old_messages_and_comes_back_with_new_ones() {
   assert_eq!(chat.unread_count, 0);
   assert!(db.last_messages(A, 50, None).unwrap().is_empty());
   assert!(db.first_unread(A).unwrap().is_none());
-  assert!(db.unread_messages(A).unwrap().is_empty(), "sem recibo de leitura das antigas");
-  assert!(db.oldest_message(A).unwrap().is_none(), "não pede as anteriores ao celular");
+  assert!(
+    db.unread_messages(A).unwrap().is_empty(),
+    "sem recibo de leitura das antigas"
+  );
+  assert!(
+    db.oldest_message(A).unwrap().is_none(),
+    "não pede as anteriores ao celular"
+  );
   let found = db.search_messages("msg", 50).unwrap();
   assert!(found.iter().all(|m| m.chat_jid == B));
 
