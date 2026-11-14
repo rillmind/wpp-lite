@@ -30,6 +30,7 @@ import {
   withMentionNames,
   type Section,
 } from './components/format'
+import { Icon } from './components/Icon'
 import { Rail } from './components/Rail'
 import { SearchResults, type SearchResult } from './components/SearchResults'
 import type { Recorded } from './api/voice'
@@ -306,7 +307,11 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           setConn(ev.data.state)
           break
         case 'chat.updated':
-          setChats((cs) => [ev.data, ...cs.filter((c) => c.jid !== ev.data.jid)].sort(byActivity))
+          // Excluída no app: só volta para a lista quando chegar mensagem nova.
+          setChats((cs) => {
+            const rest = cs.filter((c) => c.jid !== ev.data.jid)
+            return ev.data.deleted ? rest : [ev.data, ...rest].sort(byActivity)
+          })
           break
         case 'chat.typing': {
           const { chat_jid, sender_name, typing } = ev.data
@@ -336,7 +341,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           break
         }
         case 'chat.deleted': {
-          // Apagada no celular: sai da lista e, se estava aberta, fecha.
+          // Apagada no celular ou excluída aqui: sai da lista e, se estava aberta, fecha.
           const { jid } = ev.data
           setChats((cs) => cs.filter((c) => c.jid !== jid))
           if (selectedRef.current === jid) {
@@ -482,9 +487,27 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
 
   async function pickAction(chat: Chat, pick: MenuAction) {
     if (pick.action === 'read') return markRead(chat.jid)
+    if (pick.action === 'delete') {
+      return setConfirm({
+        title: 'Excluir conversa?',
+        text: 'A conversa some do app e volta só com as mensagens novas. Nada é apagado no celular nem do banco.',
+        confirmLabel: 'Excluir conversa',
+        onConfirm: () => void deleteChat(chat.jid),
+      })
+    }
     try {
       const updated = await api.action(chat.jid, pick.action, pick.action === 'mute' ? pick.hours : undefined)
       setChats((cs) => cs.map((c) => (c.jid === updated.jid ? updated : c)).sort(byActivity))
+    } catch (e) {
+      setNotice(fail(e))
+    }
+  }
+
+  async function deleteChat(jid: string) {
+    try {
+      await api.action(jid, 'delete')
+      setChats((cs) => cs.filter((c) => c.jid !== jid))
+      if (selectedRef.current === jid) closeChat()
     } catch (e) {
       setNotice(fail(e))
     }
@@ -815,6 +838,18 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
               else e.currentTarget.blur()
             }}
           />
+          {/* Aparece sempre que há texto, com ou sem foco na busca. */}
+          {query && (
+            <button
+              type="button"
+              className="search__clear"
+              aria-label="Apagar busca"
+              title="Apagar busca"
+              onClick={() => setQuery('')}
+            >
+              <Icon name="close" size={16} />
+            </button>
+          )}
         </div>
         {searching ? (
           <SearchResults

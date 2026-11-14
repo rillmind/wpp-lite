@@ -121,7 +121,7 @@ export const api = {
       body: JSON.stringify({ jids }),
     }).then(() => undefined),
   markRead: (jid: string) => request<Chat>(`/api/chats/${enc(jid)}/read`, { method: 'POST' }),
-  /** Arquiva, fixa, silencia (por `hours`, ou para sempre) ou marca como não lida. */
+  /** Arquiva, fixa, silencia (por `hours`, ou para sempre), marca como não lida ou exclui (só no app). */
   action: (jid: string, action: string, hours?: number) =>
     request<Chat>(`/api/chats/${enc(jid)}/action`, {
       method: 'POST',

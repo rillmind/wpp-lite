@@ -2,7 +2,7 @@ import type { Chat } from '../api/types'
 import { Menu, type MenuItem } from './Menu'
 
 export type MenuAction =
-  | { action: 'archive' | 'unarchive' | 'pin' | 'unpin' | 'unmute' | 'unread' }
+  | { action: 'archive' | 'unarchive' | 'pin' | 'unpin' | 'unmute' | 'unread' | 'delete' }
   | { action: 'mute'; hours?: number }
   | { action: 'read' }
 
@@ -21,7 +21,11 @@ const WEEK = 24 * 7
 export function ChatMenu({ chat, x, y, onPick, onClose }: Props) {
   const isStatus = chat.jid === 'status@broadcast'
   const isChannel = chat.jid.endsWith('@newsletter')
-  const item = (label: string, pick: MenuAction): MenuItem => ({ label, onPick: () => onPick(pick) })
+  const item = (label: string, pick: MenuAction, danger = false): MenuItem => ({
+    label,
+    onPick: () => onPick(pick),
+    danger,
+  })
   const items: MenuItem[] = []
   if (!isStatus && !isChannel) {
     items.push(
@@ -49,5 +53,6 @@ export function ChatMenu({ chat, x, y, onPick, onClose }: Props) {
       ? item('Marcar como lida', { action: 'read' })
       : item('Marcar como não lida', { action: 'unread' }),
   )
+  if (!isStatus) items.push(item('Excluir conversa', { action: 'delete' }, true))
   return <Menu x={x} y={y} items={items} onClose={onClose} />
 }

@@ -642,6 +642,50 @@ fn deleted_on_phone_goes_away_but_keeps_newer_messages() {
 }
 
 #[test]
+fn deleted_in_app_hides_old_messages_and_comes_back_with_new_ones() {
+  let mut db = db();
+  db.insert_message(&msg(A, "1", 100, false, false)).unwrap();
+  db.insert_message(&msg(A, "2", 200, true, true)).unwrap();
+  db.insert_message(&msg(B, "b", 150, false, true)).unwrap();
+  db.delete_chat_app(A).unwrap();
+
+  let list = db.list_chats(50, None).unwrap();
+  assert!(list.iter().all(|c| c.jid == B), "sai da lista");
+  let chat = db.get_chat(A).unwrap().unwrap();
+  assert!(chat.deleted);
+  assert_eq!(chat.unread_count, 0);
+  assert!(db.last_messages(A, 50, None).unwrap().is_empty());
+  assert!(db.first_unread(A).unwrap().is_none());
+  assert!(
+    db.unread_messages(A).unwrap().is_empty(),
+    "sem recibo de leitura das antigas"
+  );
+  assert!(
+    db.oldest_message(A).unwrap().is_none(),
+    "não pede as anteriores ao celular"
+  );
+  let found = db.search_messages("msg", 50).unwrap();
+  assert!(found.iter().all(|m| m.chat_jid == B));
+
+  // Mensagem antiga chegando atrasada não traz a conversa de volta.
+  db.insert_message(&msg(A, "0", 50, false, true)).unwrap();
+  assert!(db.get_chat(A).unwrap().unwrap().deleted);
+
+  db.insert_message(&msg(A, "3", 300, false, false)).unwrap();
+  let chat = db.get_chat(A).unwrap().unwrap();
+  assert!(!chat.deleted, "volta com a mensagem nova");
+  assert_eq!(chat.unread_count, 1);
+  let shown = db.last_messages(A, 50, None).unwrap();
+  assert_eq!(shown.len(), 1);
+  assert_eq!(shown[0].id, "3");
+  let read = db.mark_chat_read(A).unwrap();
+  assert_eq!(read.len(), 1);
+  assert_eq!(read[0].id, "3");
+  // Nada saiu do banco.
+  assert!(db.get_message(A, "1").unwrap().is_some());
+}
+
+#[test]
 fn search_ignores_case_and_accents() {
   let db = db();
   let mut m = msg(A, "1", 100, false, true);
