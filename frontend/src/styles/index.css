@@ -585,6 +585,11 @@ code {
   resize: none;
   overflow-wrap: anywhere;
 }
+/* Com foco basta o cursor piscando: sem contorno. */
+.composer__input:focus,
+.composer__input:focus-visible {
+  outline: none;
+}
 .composer__input::placeholder {
   color: var(--pal-overlay1);
 }
