@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
 import { getDraft, setDraft } from '../api/drafts'
 import { VoiceRecorder, voiceSupported, type Recorded } from '../api/voice'
 import { formatBytes, formatDuration } from './format'
@@ -94,6 +94,14 @@ export function Composer({
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const input = useRef<HTMLTextAreaElement>(null)
+  // A caixa cresce com o texto até o max-height do CSS (field-sizing: content não existe
+  // no Firefox): mede o conteúdo a cada mudança e ajusta a altura.
+  useLayoutEffect(() => {
+    const el = input.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`
+  }, [text])
   const picker = useRef<HTMLInputElement>(null)
   // O que está escrito vira o rascunho da conversa (some ao enviar).
   // Editando uma mensagem, a caixa não é rascunho: o rascunho volta ao terminar.

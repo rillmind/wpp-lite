@@ -782,9 +782,16 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     saveFlag(TYPING_IN_LIST_KEY, !typingInList)
   }
 
-  const visible = useMemo(() => chats.filter((c) => chatSection(c) === section), [chats, section])
+  const visible = useMemo(
+    () =>
+      section === 'unread'
+        ? // A conversa aberta fica na lista até sair dela: senão sumiria assim que é lida.
+          chats.filter((c) => chatSection(c) === 'chats' && (c.unread_count > 0 || c.jid === selected))
+        : chats.filter((c) => chatSection(c) === section),
+    [chats, section, selected],
+  )
   const unread = useMemo(() => {
-    const n: Record<Section, number> = { chats: 0, archived: 0, status: 0, channels: 0 }
+    const n: Record<Section, number> = { chats: 0, unread: 0, archived: 0, status: 0, channels: 0 }
     for (const c of chats) if (c.unread_count > 0) n[chatSection(c)] += 1
     return n
   }, [chats])
@@ -868,6 +875,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             onMenu={(chat, x, y) => setMenu({ chat, x, y })}
             live={live}
             typingInList={typingInList}
+            empty={section === 'unread' ? 'Nenhuma conversa não lida.' : undefined}
           />
         )}
         {menu && (

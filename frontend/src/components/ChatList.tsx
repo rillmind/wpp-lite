@@ -16,11 +16,21 @@ interface Props {
   live: Record<string, Live>
   /** Mostra o "digitando…" também nas conversas fechadas. */
   typingInList: boolean
+  /** Texto da lista vazia. */
+  empty?: string
 }
 
-export function ChatList({ chats, selected, onSelect, onMenu, live, typingInList }: Props) {
+export function ChatList({
+  chats,
+  selected,
+  onSelect,
+  onMenu,
+  live,
+  typingInList,
+  empty = 'Nenhuma conversa ainda. Elas aparecem aqui assim que chegarem.',
+}: Props) {
   if (chats.length === 0) {
-    return <p className="empty">Nenhuma conversa ainda. Elas aparecem aqui assim que chegarem.</p>
+    return <p className="empty">{empty}</p>
   }
   return (
     <ul className="chat-list" role="listbox" aria-label="Conversas">

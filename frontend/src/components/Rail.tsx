@@ -45,6 +45,7 @@ export function Rail({ section, unread, onSection, conn, notify, onToggleNotify,
   return (
     <nav className="rail" aria-label="Seções">
       {item('chats')}
+      {item('unread')}
       {item('status')}
       {item('channels')}
       <span className="rail__sep" aria-hidden="true" />
