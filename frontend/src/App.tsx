@@ -777,6 +777,16 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     saveFlag(NO_READ_KEY, !noRead)
   }
 
+  /** Devolve o erro, ou `null` se o pedido foi aceito. */
+  async function resyncContacts(): Promise<string | null> {
+    try {
+      await api.resyncContacts()
+      return null
+    } catch (e) {
+      return fail(e)
+    }
+  }
+
   function toggleTypingInList() {
     setTypingInList(!typingInList)
     saveFlag(TYPING_IN_LIST_KEY, !typingInList)
@@ -936,6 +946,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           onToggleNoRead={toggleNoRead}
           typingInList={typingInList}
           onToggleTypingInList={toggleTypingInList}
+          onResyncContacts={resyncContacts}
           onClose={() => setSettingsOpen(false)}
         />
       )}

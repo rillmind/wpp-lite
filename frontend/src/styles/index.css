@@ -1212,6 +1212,14 @@ code {
   background: var(--pal-surface0);
   font: inherit;
 }
+.setting--action {
+  align-items: center;
+  justify-content: space-between;
+  cursor: default;
+}
+.setting--action .btn {
+  flex: none;
+}
 .setting__name,
 .setting__hint {
   display: block;

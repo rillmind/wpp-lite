@@ -41,6 +41,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `GET /api/chats/{jid}/messages/{id}/media` | baixa a imagem, figurinha, vídeo, áudio ou documento do WhatsApp na hora (`Cache-Control: no-store`; documento sempre como anexo; até 32 MB, vídeo até 100 MB) |
 | `GET /api/chats/{jid}/avatar` | foto de perfil, buscada na hora; `204` se não houver |
 | `POST /api/presence/watch` | `{ "jids": [...] }`: passa a receber "online" e "digitando…" destas conversas individuais, até 31 (deixa de acompanhar as outras); chegam como `chat.presence` e `chat.typing` no SSE |
+| `POST /api/contacts/resync` | pede ao celular a agenda inteira de novo, como num aparelho recém-pareado (sem mensagens); os nomes chegam depois como `chat.updated` no SSE. `204`, ou `503` sem conexão |
 | `POST /api/chats/{jid}/read` | recibos de leitura + marca lido no celular |
 | `POST /api/chats/{jid}/action` | `{ "action": "archive" \| "unarchive" \| "pin" \| "unpin" \| "mute" \| "unmute" \| "unread" \| "delete", "hours"? }` (`hours` só em `mute`; sem ele, para sempre). `archive`/`unarchive` e `delete` ficam só no app; `delete` tira a conversa da lista e esconde as mensagens até ali, sem apagar do banco, e ela volta com a próxima mensagem |
 | `POST /api/chats/{jid}/send` | `{ "text": "...", "reply_to"? }`, uma mensagem por requisição; `reply_to` cita outra mensagem da conversa |
