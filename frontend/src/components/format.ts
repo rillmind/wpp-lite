@@ -136,16 +136,17 @@ function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-export type Section = 'chats' | 'archived' | 'status' | 'channels'
+export type Section = 'chats' | 'unread' | 'archived' | 'status' | 'channels'
 
 export const SECTION_TITLE: Record<Section, string> = {
   chats: 'Conversas',
+  unread: 'Não lidas',
   archived: 'Arquivadas',
   status: 'Status',
   channels: 'Canais',
 }
 
-/** Seção da barra lateral onde a conversa aparece. */
+/** Seção da barra lateral onde a conversa aparece ("Não lidas" é um filtro de "Conversas"). */
 export function chatSection(c: Chat): Section {
   if (c.jid === 'status@broadcast') return 'status'
   if (c.jid.endsWith('@newsletter')) return 'channels'

@@ -1,6 +1,7 @@
 /** Traços dos ícones, numa grade de 24×24. */
 const PATHS = {
   chats: 'M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8l-4 4V5a1 1 0 0 1 1-1z',
+  unread: 'M14 4H5a1 1 0 0 0-1 1v16l4-4h12a1 1 0 0 0 1-1v-6M19 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
   status: 'M12 3a9 9 0 1 1-6.4 2.6M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
   channels: 'M3 10v4h3l6 4V6L6 10zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11',
   archived: 'M3 4h18v4H3zM5 8h14v12H5zM10 12h4',
