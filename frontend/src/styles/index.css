@@ -583,7 +583,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 10px;
   resize: none;
-  field-sizing: content;
+  overflow-wrap: anywhere;
 }
 .composer__input::placeholder {
   color: var(--pal-overlay1);
