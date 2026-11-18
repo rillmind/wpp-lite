@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { MODES, THEMES, type ThemeMode, type ThemeName } from '../api/theme'
 import { Dialog } from './Dialog'
 
@@ -10,6 +11,8 @@ interface Props {
   onToggleNoRead: () => void
   typingInList: boolean
   onToggleTypingInList: () => void
+  /** Devolve o erro, ou `null` se o pedido foi aceito. */
+  onResyncContacts: () => Promise<string | null>
   onClose: () => void
 }
 
@@ -23,8 +26,17 @@ export function Settings({
   onToggleNoRead,
   typingInList,
   onToggleTypingInList,
+  onResyncContacts,
   onClose,
 }: Props) {
+  const [resync, setResync] = useState<{ pending: boolean; result?: string }>({ pending: false })
+
+  async function resyncContacts() {
+    setResync({ pending: true })
+    const err = await onResyncContacts()
+    setResync({ pending: false, result: err ?? 'Pedido enviado. Os nomes chegam do celular em instantes.' })
+  }
+
   return (
     <Dialog title="Configurações" onClose={onClose}>
       <label className="setting setting--select">
@@ -66,6 +78,22 @@ export function Settings({
           </span>
         </span>
       </label>
+      <div className="setting setting--action">
+        <span>
+          <span className="setting__name">Contatos do celular</span>
+          <span className="setting__hint">
+            Busca de novo os nomes da agenda, como ao conectar o app pela primeira vez. Não traz mensagens.
+          </span>
+          {resync.result && (
+            <span className="setting__hint" role="status">
+              {resync.result}
+            </span>
+          )}
+        </span>
+        <button type="button" className="btn" disabled={resync.pending} onClick={() => void resyncContacts()}>
+          {resync.pending ? 'Pedindo…' : 'Ressincronizar'}
+        </button>
+      </div>
       <div className="dialog__actions">
         <button type="button" className="btn" onClick={onClose}>
           Fechar

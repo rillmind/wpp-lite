@@ -1184,6 +1184,14 @@ fn to_sse(ev: &ApiEvent) -> Event {
   }
 }
 
+/// Pede ao celular a agenda inteira de novo, como num aparelho recém-pareado. Nenhuma
+/// mensagem vem junto; os nomes chegam depois, como eventos (pelo SSE).
+pub async fn resync_contacts(State(st): State<AppState>) -> ApiResult<StatusCode> {
+  ensure_connected(&st)?;
+  st.wa.resync_contacts().await.map_err(ApiError::Upstream)?;
+  Ok(StatusCode::NO_CONTENT)
+}
+
 fn ensure_connected(st: &AppState) -> ApiResult<()> {
   if st.wa.state() == ConnState::Connected {
     Ok(())

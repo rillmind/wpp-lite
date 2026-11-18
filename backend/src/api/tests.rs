@@ -36,6 +36,7 @@ struct FakeWa {
   reactions: Mutex<Vec<(String, String)>>,
   watched: Mutex<Vec<String>>,
   edits: Mutex<Vec<(String, String)>>,
+  contact_resyncs: Mutex<u32>,
 }
 
 #[async_trait]
@@ -173,6 +174,7 @@ impl WhatsApp for FakeWa {
   }
 
   async fn resync_contacts(&self) -> Result<()> {
+    *self.contact_resyncs.lock().unwrap() += 1;
     Ok(())
   }
 
@@ -484,6 +486,22 @@ async fn send_and_read_need_connection() {
   assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
   let (code, _) = call(&h, "POST", &format!("/api/chats/{A}/read"), None).await;
   assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
+}
+
+#[tokio::test]
+async fn resync_contacts_asks_whatsapp_when_connected() {
+  let h = harness();
+  let (code, _) = call(&h, "POST", "/api/contacts/resync", None).await;
+  assert_eq!(code, StatusCode::NO_CONTENT);
+  assert_eq!(*h.wa.contact_resyncs.lock().unwrap(), 1);
+
+  let h = harness_with(FakeWa {
+    offline: true,
+    ..Default::default()
+  });
+  let (code, _) = call(&h, "POST", "/api/contacts/resync", None).await;
+  assert_eq!(code, StatusCode::SERVICE_UNAVAILABLE);
+  assert_eq!(*h.wa.contact_resyncs.lock().unwrap(), 0);
 }
 
 #[tokio::test]

@@ -44,6 +44,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const body = await res.json().catch(() => null)
     throw new ApiError(res.status, body?.error ?? res.statusText)
   }
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }
 
@@ -121,6 +122,8 @@ export const api = {
       body: JSON.stringify({ jids }),
     }).then(() => undefined),
   markRead: (jid: string) => request<Chat>(`/api/chats/${enc(jid)}/read`, { method: 'POST' }),
+  /** Pede a agenda de novo ao celular (sem mensagens); os nomes chegam pelo SSE. */
+  resyncContacts: () => request<void>('/api/contacts/resync', { method: 'POST' }),
   /** Arquiva, fixa, silencia (por `hours`, ou para sempre), marca como não lida ou exclui (só no app). */
   action: (jid: string, action: string, hours?: number) =>
     request<Chat>(`/api/chats/${enc(jid)}/action`, {

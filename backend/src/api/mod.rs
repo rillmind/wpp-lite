@@ -79,6 +79,7 @@ pub fn router(
     .route("/api/phones/{digits}/chat", get(handlers::phone_chat))
     .route("/api/presence", post(handlers::presence))
     .route("/api/presence/watch", post(handlers::watch))
+    .route("/api/contacts/resync", post(handlers::resync_contacts))
     .route("/api/events", get(handlers::events))
     .route_layer(middleware::from_fn_with_state(state.clone(), auth))
     // Fora da autenticação: só diz que o processo responde (healthcheck do container).
