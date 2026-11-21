@@ -281,6 +281,15 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     [fail],
   )
 
+  const [markingAll, setMarkingAll] = useState(false)
+  /** "Marcar todas como lidas" da aba Não lidas: um pedido por conversa, todos em paralelo. */
+  async function markAllRead() {
+    setMarkingAll(true)
+    const jids = chats.filter((c) => chatSection(c) === 'chats' && c.unread_count > 0).map((c) => c.jid)
+    await Promise.all(jids.map((jid) => markRead(jid)))
+    setMarkingAll(false)
+  }
+
   // Chegaram as mensagens antigas pedidas ao celular: busca as que ficaram antes da tela.
   const onHistoryLoaded = useCallback(
     async (chatJid: string, count: number) => {
@@ -838,6 +847,16 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
       <aside className="sidebar">
         <header className="topbar">
           <h1 className="topbar__title">{SECTION_TITLE[section]}</h1>
+          {section === 'unread' && unread.chats > 0 && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void markAllRead()}
+              disabled={markingAll || conn !== 'connected' || stream !== 'open'}
+            >
+              Marcar todas como lidas
+            </button>
+          )}
         </header>
         <div className="search">
           <input
