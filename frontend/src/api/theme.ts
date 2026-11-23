@@ -4,6 +4,7 @@ export const THEMES = [
   { id: 'catppuccin', label: 'Catppuccin' },
   { id: 'gruvbox', label: 'Gruvbox' },
   { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'vinho', label: 'Vinho' },
 ] as const
 export const MODES = [
   { id: 'system', label: 'Seguir o sistema' },
