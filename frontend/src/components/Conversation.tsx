@@ -374,24 +374,24 @@ export function Conversation({
             </div>
           </Fragment>
         ))}
+        {/* Dentro da rolagem: flutua no fim e as mensagens passam por trás. */}
+        {!readOnly && (
+          <Composer
+            key={conv.jid}
+            jid={conv.jid}
+            disabled={!connected}
+            onSend={onSend}
+            onSendFile={onSendFile}
+            onSendVoice={onSendVoice}
+            reply={replyTo ? { who: who(replyTo), text: messageText(replyTo) } : null}
+            onCancelReply={onCancelReply}
+            editing={editing ? { id: editing.id, text: editing.body ?? '' } : null}
+            onCancelEdit={onCancelEdit}
+          />
+        )}
       </div>
 
-      {readOnly ? (
-        <p className="readonly-note">Status e canais são só de leitura aqui.</p>
-      ) : (
-        <Composer
-          key={conv.jid}
-          jid={conv.jid}
-          disabled={!connected}
-          onSend={onSend}
-          onSendFile={onSendFile}
-          onSendVoice={onSendVoice}
-          reply={replyTo ? { who: who(replyTo), text: messageText(replyTo) } : null}
-          onCancelReply={onCancelReply}
-          editing={editing ? { id: editing.id, text: editing.body ?? '' } : null}
-          onCancelEdit={onCancelEdit}
-        />
-      )}
+      {readOnly && <p className="readonly-note">Status e canais são só de leitura aqui.</p>}
       {menu && (
         <MessageMenu
           message={menu.m}

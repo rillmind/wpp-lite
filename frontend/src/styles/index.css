@@ -419,6 +419,9 @@ code {
   overflow-y: auto;
   position: relative;
 }
+.messages:has(> .composer) {
+  padding-bottom: 0;
+}
 .load-older {
   align-self: center;
   color: var(--link);
@@ -563,9 +566,47 @@ code {
 
 /* Compositor */
 .composer {
-  padding: 0.5rem 1rem;
-  background: var(--bg-bar);
-  border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  flex: none;
+  /* Conversa curta: fica no fim da tela mesmo assim. */
+  margin-top: auto;
+  padding: 0.5rem 0 calc(0.6rem + env(safe-area-inset-bottom));
+  /* O vão em volta das cápsulas não bloqueia as mensagens de trás. */
+  pointer-events: none;
+}
+.composer > * {
+  pointer-events: auto;
+}
+.composer__row {
+  pointer-events: none;
+}
+.composer__row > * {
+  pointer-events: auto;
+}
+/* Cápsulas flutuantes de vidro. */
+.composer__input,
+.composer .composer__attach,
+.composer__row--recording,
+.composer .reply-bar,
+.composer .attachment,
+.composer .composer__error {
+  background: color-mix(in srgb, var(--pal-surface0) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.composer .reply-bar {
+  border-left: 3px solid var(--pal-peach);
+}
+.composer .composer__error {
+  padding: 0.35rem 0.75rem;
+  border-radius: 12px;
+}
+.composer__row .btn {
+  min-height: 2.5rem;
+  border-radius: 1.25rem;
 }
 .composer__row {
   display: flex;
@@ -579,9 +620,7 @@ code {
   padding: 0.55rem 0.75rem;
   font: inherit;
   color: var(--fg);
-  background: var(--pal-surface0);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 1.25rem;
   resize: none;
   overflow-wrap: anywhere;
 }
@@ -1293,6 +1332,8 @@ code {
 /* Gravando mensagem de voz */
 .composer__row--recording {
   align-items: center;
+  padding: 0.25rem;
+  border-radius: 1.5rem;
 }
 .recording {
   display: flex;
