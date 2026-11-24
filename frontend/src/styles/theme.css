@@ -301,3 +301,103 @@
   --tint-quote: rgb(0 0 0 / 0.05);
   --tint-chip: rgb(0 0 0 / 0.07);
 }
+
+/* Vinho escuro (cores do tema Vinho para Obsidian) */
+:root[data-theme='vinho-dark'] {
+  color-scheme: dark;
+  --pal-rosewater: #e8d5cf;
+  --pal-flamingo: #c9aaab;
+  --pal-pink: #dc7396;
+  --pal-mauve: #c99ab8;
+  --pal-red: #e0566f;
+  --pal-maroon: #d0688c;
+  --pal-peach: #d98968;
+  --pal-yellow: #d9a862;
+  --pal-green: #a3ad7a;
+  --pal-teal: #8fb0a4;
+  --pal-sky: #8fb0a4;
+  --pal-sapphire: #93a3c0;
+  --pal-blue: #93a3c0;
+  --pal-lavender: #c99ab8;
+  --pal-text: #e8d5cf;
+  --pal-subtext1: #c9aaab;
+  --pal-subtext0: #c9aaab;
+  --pal-overlay2: #b08d94;
+  --pal-overlay1: #b08d94;
+  --pal-overlay0: #8a646c;
+  --pal-surface2: #5f2c3c;
+  --pal-surface1: #4a1d2c;
+  --pal-surface0: #35151f;
+  --pal-base: #1c0b12;
+  --pal-mantle: #1c0b12;
+  --pal-crust: #15070d;
+  --bg-bar: #28111a;
+  --bg-selected: #5a2236;
+  --bubble-out: #8c2f4b;
+  --bubble-out-fg: #f6e9e2;
+  --tick-read-out: #c3d2ee;
+  --accent: #d0688c;
+  --accent-hover: #dc7396;
+  --unread: #d9a862;
+  --focus: #d0688c;
+  --shade: 21 7 13;
+  --tint-quote: rgb(21 7 13 / 0.25);
+  --tint-chip: rgb(21 7 13 / 0.4);
+}
+
+/* Vinho claro */
+:root[data-theme='vinho-light'] {
+  color-scheme: light;
+  --pal-rosewater: #9c502c;
+  --pal-flamingo: #a93d60;
+  --pal-pink: #a93d60;
+  --pal-mauve: #7d436b;
+  --pal-red: #b22945;
+  --pal-maroon: #8c2f4b;
+  --pal-peach: #9c502c;
+  --pal-yellow: #855b16;
+  --pal-green: #58652a;
+  --pal-teal: #2f6758;
+  --pal-sky: #2f6758;
+  --pal-sapphire: #435782;
+  --pal-blue: #435782;
+  --pal-lavender: #7d436b;
+  --pal-text: #35151f;
+  --pal-subtext1: #5f2c3c;
+  --pal-subtext0: #75505a;
+  --pal-overlay2: #75505a;
+  --pal-overlay1: #75505a;
+  --pal-overlay0: #8a646c;
+  --pal-surface2: #c79fa2;
+  --pal-surface1: #dcc0bc;
+  --pal-surface0: #ebd7d1;
+  --pal-base: #fbf3ef;
+  --pal-mantle: #fbf3ef;
+  --pal-crust: #f3e5e0;
+  --bg-selected: #ecc4cd;
+  --fg-muted: var(--pal-subtext1);
+  --bubble-in: #f3e5e0;
+  --bubble-out: #8c2f4b;
+  --bubble-out-fg: #fbf3ef;
+  --tick-read-out: #c9d8f5;
+  --accent: #8c2f4b;
+  --accent-fg: #fbf3ef;
+  --accent-hover: #a93d60;
+  --on-color: #fbf3ef;
+  --unread: #8c2f4b;
+  --focus: #8c2f4b;
+  --shade: 53 21 31;
+  --tint-quote: rgb(0 0 0 / 0.08);
+  --tint-chip: rgb(0 0 0 / 0.1);
+}
+
+/* Vinho: como no Obsidian, letra monoespaçada, cantos retos e sem sombras. */
+:root[data-theme^='vinho'] body {
+  font-family: 'JetBrains Mono', 'JetBrainsMono Nerd Font', ui-monospace, monospace;
+}
+:root[data-theme^='vinho'] *,
+:root[data-theme^='vinho'] *::before,
+:root[data-theme^='vinho'] *::after {
+  border-radius: 0;
+  box-shadow: none;
+}
