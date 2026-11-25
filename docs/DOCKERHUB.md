@@ -1,3 +1,5 @@
+![Ícone do WhatsApp Lite](https://raw.githubusercontent.com/rillmind/wpp-lite/main/frontend/public/icon-192.png)
+
 # WhatsApp Lite
 
 Cliente de WhatsApp pessoal que roda no seu servidor e abre no navegador. O backend (Rust) fica
