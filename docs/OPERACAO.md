@@ -57,8 +57,8 @@ Logs em nível `info` não têm conteúdo de mensagens.
 ## CI e publicação
 
 `.github/workflows/ci.yml` roda fmt, clippy, testes, lint e build do front, compila a imagem e
-faz um teste com ela no ar (API, front e desligamento limpo). Em PR para por aí. Em push na
-`main` publica `softfrost/wpp-lite:latest` e `:sha-<commit>`; numa tag `v1.2.3`, também `:1.2.3`
+faz um teste com ela no ar (API, front e desligamento limpo), tudo em paralelo. Em PR para por aí.
+Em push na `main`, se tudo passar, publica `softfrost/wpp-lite:latest` e `:sha-<commit>`; numa tag `v1.2.3`, também `:1.2.3`
 e `:1.2`.
 
 No GitHub (Settings → Secrets and variables → Actions): variável `DOCKERHUB_USERNAME` e secret

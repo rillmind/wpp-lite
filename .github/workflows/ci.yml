@@ -22,14 +22,23 @@ env:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    env:
+      # Sem símbolos de depuração: compila mais rápido e o cache fica menor.
+      CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.97
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Descarta os caches de antes do passo abaixo, que recompilavam sempre.
+          prefix-key: v1-rust
       - run: cargo fmt --all --check
       - run: cargo clippy --all-targets --locked -- -D warnings
+      # O build script do waproto grava este arquivo depois do carimbo do cargo, que por isso
+      # recompilaria toda a whatsapp-rust no próximo comando (e ao restaurar o cache).
+      - run: find target -name whatsapp.local.desc -exec touch -d 2000-01-01 {} +
       - run: cargo test --locked
 
   frontend:
@@ -48,12 +57,9 @@ jobs:
       - run: npm run lint
       - run: npm run build
 
+  # Em paralelo com os testes; quem espera por eles é só a publicação.
   image:
-    needs: [backend, frontend]
     runs-on: ubuntu-latest
-    env:
-      # Secrets não podem ir direto no `if` de um passo.
-      HAS_README_TOKEN: ${{ secrets.DOCKERHUB_README_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -87,8 +93,18 @@ jobs:
           docker logs wpp 2>&1 | grep -q encerrado
           [ "$(docker inspect wpp --format '{{.State.ExitCode}}')" = 0 ]
 
+  publish:
+    needs: [backend, frontend, image]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      # Secrets não podem ir direto no `if` de um passo.
+      HAS_README_TOKEN: ${{ secrets.DOCKERHUB_README_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+
       - name: Tags
-        if: github.event_name != 'pull_request'
         id: meta
         uses: docker/metadata-action@v6
         with:
@@ -100,15 +116,13 @@ jobs:
             type=sha
 
       - name: Login no Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Reaproveita o cache do build acima; não recompila.
+      # Reaproveita o cache do job da imagem; não recompila.
       - name: Push
-        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
