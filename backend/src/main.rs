@@ -40,6 +40,8 @@ async fn main() -> Result<()> {
     tx.clone(),
   )
   .await?;
+  // Depois de abrir os dois bancos, que já existem em disco.
+  config::restrict_permissions(&config.data_dir);
   tokio::spawn(ingest::backfill_lids(
     store.clone(),
     Arc::clone(&whatsapp),

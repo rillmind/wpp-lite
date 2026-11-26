@@ -81,12 +81,11 @@ pub fn router(
     .route("/api/presence/watch", post(handlers::watch))
     .route("/api/contacts/resync", post(handlers::resync_contacts))
     .route("/api/events", get(handlers::events))
+    // Com token: quem lê o QR conecta o próprio celular a este servidor.
+    .route("/api/pairing", get(handlers::pairing))
     .route_layer(middleware::from_fn_with_state(state.clone(), auth))
     // Fora da autenticação: só diz que o processo responde (healthcheck do container).
     .route("/healthz", get(|| async { "ok" }))
-    // Fora da autenticação: no primeiro uso a pessoa ainda não tem o token à mão.
-    // Só devolve o QR enquanto não há celular pareado.
-    .route("/api/pairing", get(handlers::pairing))
     .with_state(state);
 
   let app = match front_dir {
@@ -95,7 +94,41 @@ pub fn router(
     }
     None => api,
   };
-  Ok(app.layer(cors))
+  Ok(app.layer(cors).layer(middleware::from_fn(security_headers)))
+}
+
+/// Só recursos da própria origem (o front é servido por aqui). `blob:` e `data:` são as
+/// mídias baixadas com o token e o QR; nada de script inline nem de ser posto em `<iframe>`.
+const CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self'; \
+  img-src 'self' blob: data:; media-src 'self' blob:; font-src 'self'; connect-src 'self'; \
+  worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; \
+  form-action 'self'; frame-ancestors 'none'";
+
+/// Cabeçalhos de segurança em toda resposta, sem sobrescrever os que a rota já pôs.
+async fn security_headers(req: Request, next: Next) -> Response {
+  let mut resp = next.run(req).await;
+  let headers = resp.headers_mut();
+  let defaults = [
+    (header::CONTENT_SECURITY_POLICY, CSP),
+    (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+    (header::X_FRAME_OPTIONS, "DENY"),
+    (header::REFERRER_POLICY, "no-referrer"),
+    (
+      header::HeaderName::from_static("cross-origin-opener-policy"),
+      "same-origin",
+    ),
+    // Microfone para a mensagem de voz; o resto desligado.
+    (
+      header::HeaderName::from_static("permissions-policy"),
+      "camera=(), geolocation=(), payment=(), usb=(), microphone=(self)",
+    ),
+  ];
+  for (name, value) in defaults {
+    headers
+      .entry(name)
+      .or_insert(HeaderValue::from_static(value));
+  }
+  resp
 }
 
 /// `Authorization: Bearer <token>`. O `EventSource` do navegador não envia

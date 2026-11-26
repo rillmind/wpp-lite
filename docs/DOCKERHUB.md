@@ -12,7 +12,7 @@ Para uma pessoa lendo e respondendo: sem bot, sem automação, sem envio em mass
 - Imagens, vídeos, áudios e documentos baixados só quando você clica, e só na memória da aba.
 - Responder, encaminhar, fixar, favoritar, apagar, arquivar, silenciar.
 - Notificações no navegador, sem tirar as do celular.
-- O QR de pareamento aparece na primeira tela.
+- O QR de pareamento aparece na interface, depois do token.
 
 Código, detalhes e tudo o que o app faz: [github.com/rillmind/wpp-raios-client](https://github.com/rillmind/wpp-raios-client).
 
@@ -51,9 +51,9 @@ mkdir -p data && sudo chown 1000:1000 data
 docker compose up -d
 ```
 
-1. Abra `http://127.0.0.1:8787` no servidor (ou pelo acesso remoto abaixo). O QR aparece na
-   primeira tela: no celular, **WhatsApp → Aparelhos conectados → Conectar aparelho**.
-2. A interface pede um token uma vez: `sudo cat data/config.toml`, campo `token`.
+1. Abra `http://127.0.0.1:8787` no servidor (ou pelo acesso remoto abaixo). A interface pede
+   um token uma vez: `sudo cat data/config.toml`, campo `token`.
+2. Em seguida aparece o QR: no celular, **WhatsApp → Aparelhos conectados → Conectar aparelho**.
 
 Atualizar: `docker compose pull && docker compose up -d`.
 

@@ -10,6 +10,11 @@ scripts/backup.sh ./data ~/backups/wpp-lite                          # docker
 Copia `whatsapp.db`, `messages.db` e `config.toml`, mantendo os 10 mais recentes. Com o
 `sqlite3` instalado a cópia é consistente com o app rodando; sem ele, pare o app antes.
 
+Os bancos não são criptografados: `whatsapp.db` tem as chaves da sessão (com ele dá para usar
+a conta como aparelho conectado) e `messages.db` tem as mensagens. Ao subir, o app deixa o
+diretório de dados em 0700 e cada arquivo dele em 0600. Guarde os backups com o mesmo cuidado
+(criptografados, se saírem da máquina) e prefira disco criptografado no servidor.
+
 ## Trocar de número
 
 1. Pare o app e faça backup do diretório de dados.
@@ -33,7 +38,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | Rota | |
 | --- | --- |
 | `GET /healthz` | sem token; `ok` se o processo responde |
-| `GET /api/pairing` | sem token; `{ state, qr_svg }`, com o QR só enquanto não há celular pareado |
+| `GET /api/pairing` | `{ state, qr_svg }`, com o QR só enquanto não há celular pareado |
 | `GET /api/status` | `{ state, connected }` |
 | `GET /api/chats?limit=&before_ts=` | conversas por atividade, com `name` e `phone` |
 | `GET /api/search?q=` | busca local (2 a 100 caracteres, sem maiúsculas/acentos): `{ chats, messages }`, até 20 conversas pelo nome/telefone e 50 mensagens pelo texto, mais novas primeiro |

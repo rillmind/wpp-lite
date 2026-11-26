@@ -124,6 +124,50 @@ fn generate_token() -> Result<String> {
   Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
 }
 
+/// Pasta de dados só para o dono (0700) e cada arquivo dela em 0600: os bancos guardam,
+/// sem criptografia, as chaves da sessão do WhatsApp e as mensagens. O SQLite cria o
+/// `-wal` e o `-shm` com a permissão do banco, então basta corrigir o que já existe,
+/// depois de abrir os bancos. Falhar aqui (pasta de outro dono) só gera um aviso.
+pub fn restrict_permissions(data_dir: &Path) {
+  #[cfg(unix)]
+  {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fix = |path: &Path, mode: u32| {
+      let result = std::fs::symlink_metadata(path).and_then(|meta| {
+        if meta.permissions().mode() & 0o077 == 0 {
+          return Ok(false);
+        }
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).map(|()| true)
+      });
+      match result {
+        Ok(true) => {
+          tracing::info!(path = %path.display(), mode = format!("{mode:o}"), "permissão restringida")
+        }
+        Ok(false) => {}
+        Err(e) => {
+          tracing::warn!(path = %path.display(), error = %e, "não deu para restringir a permissão")
+        }
+      }
+    };
+
+    fix(data_dir, 0o700);
+    match std::fs::read_dir(data_dir) {
+      Ok(entries) => {
+        for entry in entries.flatten() {
+          // Só arquivos comuns: link simbólico e subpasta ficam como estão.
+          if entry.file_type().is_ok_and(|t| t.is_file()) {
+            fix(&entry.path(), 0o600);
+          }
+        }
+      }
+      Err(e) => tracing::warn!(path = %data_dir.display(), error = %e, "listando a pasta de dados"),
+    }
+  }
+  #[cfg(not(unix))]
+  let _ = data_dir;
+}
+
 fn write_private(path: &Path, contents: &str) -> Result<()> {
   std::fs::write(path, contents).with_context(|| format!("escrevendo {}", path.display()))?;
   #[cfg(unix)]
@@ -132,4 +176,36 @@ fn write_private(path: &Path, contents: &str) -> Result<()> {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
   }
   Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+  use std::os::unix::fs::PermissionsExt;
+
+  use super::*;
+
+  fn mode(path: &Path) -> u32 {
+    std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+  }
+
+  #[test]
+  fn restricts_data_dir_and_files_to_owner() {
+    let dir = std::env::temp_dir().join(format!("wpp-perm-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("sub")).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    for name in ["messages.db", "messages.db-wal", "whatsapp.db"] {
+      std::fs::write(dir.join(name), b"x").unwrap();
+      std::fs::set_permissions(dir.join(name), std::fs::Permissions::from_mode(0o644)).unwrap();
+    }
+    std::fs::set_permissions(dir.join("sub"), std::fs::Permissions::from_mode(0o755)).unwrap();
+
+    restrict_permissions(&dir);
+
+    assert_eq!(mode(&dir), 0o700);
+    for name in ["messages.db", "messages.db-wal", "whatsapp.db"] {
+      assert_eq!(mode(&dir.join(name)), 0o600, "{name}");
+    }
+    assert_eq!(mode(&dir.join("sub")), 0o755, "subpasta fica como está");
+    std::fs::remove_dir_all(&dir).unwrap();
+  }
 }
