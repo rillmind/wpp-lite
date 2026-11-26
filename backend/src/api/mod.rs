@@ -81,12 +81,11 @@ pub fn router(
     .route("/api/presence/watch", post(handlers::watch))
     .route("/api/contacts/resync", post(handlers::resync_contacts))
     .route("/api/events", get(handlers::events))
+    // Com token: quem lê o QR conecta o próprio celular a este servidor.
+    .route("/api/pairing", get(handlers::pairing))
     .route_layer(middleware::from_fn_with_state(state.clone(), auth))
     // Fora da autenticação: só diz que o processo responde (healthcheck do container).
     .route("/healthz", get(|| async { "ok" }))
-    // Fora da autenticação: no primeiro uso a pessoa ainda não tem o token à mão.
-    // Só devolve o QR enquanto não há celular pareado.
-    .route("/api/pairing", get(handlers::pairing))
     .with_state(state);
 
   let app = match front_dir {

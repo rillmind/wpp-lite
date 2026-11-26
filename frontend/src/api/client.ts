@@ -84,11 +84,9 @@ export interface Pairing {
   qr_svg: string | null
 }
 
-/** Estado do pareamento; não precisa de token (é a primeira tela do primeiro uso). */
-export async function fetchPairing(): Promise<Pairing> {
-  const res = await fetch(`${API_URL}/api/pairing`, { cache: 'no-store' })
-  if (!res.ok) throw new ApiError(res.status, res.statusText)
-  return res.json() as Promise<Pairing>
+/** Estado do pareamento e o QR, enquanto não há celular pareado. */
+export function fetchPairing(): Promise<Pairing> {
+  return request<Pairing>('/api/pairing', { cache: 'no-store' })
 }
 
 const enc = encodeURIComponent

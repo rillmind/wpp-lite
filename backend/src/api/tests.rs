@@ -732,15 +732,25 @@ async fn send_refuses_status_and_channels() {
 }
 
 #[tokio::test]
-async fn pairing_shows_qr_without_token_only_while_waiting() {
-  let req = || Request::get("/api/pairing").body(Body::empty()).unwrap();
+async fn pairing_needs_token_and_shows_qr_only_while_waiting() {
+  let req = || {
+    Request::get("/api/pairing")
+      .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
+      .body(Body::empty())
+      .unwrap()
+  };
 
   let waiting = harness_with(FakeWa {
     qr: Some("2@abc,def,ghi".into()),
     ..Default::default()
   });
+  // Sem token, nada de QR: quem o ler conecta o próprio celular a este servidor.
+  let anon = Request::get("/api/pairing").body(Body::empty()).unwrap();
+  let resp = waiting.app.clone().oneshot(anon).await.unwrap();
+  assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
   let resp = waiting.app.clone().oneshot(req()).await.unwrap();
-  assert_eq!(resp.status(), StatusCode::OK, "sem token");
+  assert_eq!(resp.status(), StatusCode::OK);
   let body: Value =
     serde_json::from_slice(&resp.into_body().collect().await.unwrap().to_bytes()).unwrap();
   assert_eq!(body["state"], "waiting_qr");
