@@ -1459,3 +1459,21 @@ async fn edits_from_the_phone_replace_the_text() {
     matches!(&out[0], ApiEvent::MessageUpdated(m) if m.body.as_deref() == Some("corrigido") && m.edited)
   );
 }
+
+#[tokio::test]
+async fn every_response_has_security_headers() {
+  let h = harness();
+  for req in [
+    Request::get("/healthz").body(Body::empty()).unwrap(),
+    Request::get("/api/chats").body(Body::empty()).unwrap(),
+  ] {
+    let resp = h.app.clone().oneshot(req).await.unwrap();
+    let headers = resp.headers();
+    let csp = headers[header::CONTENT_SECURITY_POLICY].to_str().unwrap();
+    assert!(csp.contains("script-src 'self';"), "{csp}");
+    assert!(csp.contains("frame-ancestors 'none'"), "{csp}");
+    assert_eq!(headers[header::X_FRAME_OPTIONS], "DENY");
+    assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
+    assert_eq!(headers[header::REFERRER_POLICY], "no-referrer");
+  }
+}
