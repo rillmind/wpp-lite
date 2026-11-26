@@ -22,6 +22,8 @@ const PATHS = {
   camera: 'M4 7h4l2-3h4l2 3h4v13H4zM12 10a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z',
   settings: 'M4 7h9M17 7h3M13 5h4v4h-4zM4 17h3M11 17h9M7 15h4v4H7z',
   ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8',
+  send: 'M21 3L10 14M21 3l-6.5 18-3.5-7-7-3.5z',
+  down: 'M12 5v14M6 13l6 6 6-6',
 }
 
 export type IconName = keyof typeof PATHS

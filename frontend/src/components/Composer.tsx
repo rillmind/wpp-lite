@@ -31,6 +31,8 @@ interface Props {
   /** Editando esta mensagem sua: a caixa vem com o texto dela e "Salvar" troca o texto. */
   editing: { id: string; text: string } | null
   onCancelEdit: () => void
+  /** Ir para as mensagens mais recentes; só quando a conversa está rolada para cima. */
+  onJumpToEnd?: () => void
 }
 
 interface Pending {
@@ -88,6 +90,7 @@ export function Composer({
   onCancelReply,
   editing,
   onCancelEdit,
+  onJumpToEnd,
 }: Props) {
   const [text, setTextState] = useState(() => getDraft(jid))
   const [files, setFiles] = useState<Pending[]>([])
@@ -324,6 +327,20 @@ export function Composer({
         void submit()
       }}
     >
+      {onJumpToEnd && (
+        <div className="composer__jump">
+          <button
+            type="button"
+            className="btn composer__action"
+            aria-label="Ir para as mensagens mais recentes"
+            title="Ir para as mensagens mais recentes"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onJumpToEnd}
+          >
+            <Icon name="down" size={20} />
+          </button>
+        </div>
+      )}
       {error && (
         <p className="composer__error" role="alert">
           {error}
@@ -453,7 +470,7 @@ export function Composer({
           {showMic ? (
             <button
               type="button"
-              className="btn btn--primary composer__mic"
+              className="btn btn--primary composer__action composer__mic"
               aria-label="Gravar áudio"
               title="Gravar áudio (segure e solte para enviar, ou toque para gravar)"
               disabled={disabled || sending}
@@ -468,12 +485,14 @@ export function Composer({
           ) : (
             <button
               type="submit"
-              className="btn btn--primary"
+              className="btn btn--primary composer__action"
               disabled={!canSend}
+              aria-label={editing ? 'Salvar' : sending && files.length ? 'Enviando…' : 'Enviar'}
+              title={editing ? 'Salvar' : 'Enviar'}
               // Não tira o foco da caixa: no celular, isso fecharia o teclado a cada envio.
               onPointerDown={(e) => e.preventDefault()}
             >
-              {editing ? 'Salvar' : sending && files.length ? 'Enviando…' : 'Enviar'}
+              <Icon name={editing ? 'check' : 'send'} size={20} />
             </button>
           )}
         </div>

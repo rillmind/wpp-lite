@@ -164,6 +164,8 @@ export function Conversation({
   const positioned = useRef<string | null>(null)
   const restore = useRef<number | null>(null)
   const stick = useRef(true)
+  // Rolada para cima: mostra o botão de voltar ao fim.
+  const [awayFromEnd, setAwayFromEnd] = useState(false)
 
   // Ao abrir: rola até a primeira não lida (ou o fim). Depois: mantém no fim
   // se o usuário já estava lá, e preserva a posição ao carregar anteriores.
@@ -183,6 +185,8 @@ export function Conversation({
         jumpTo(conv.focusId, 'auto')
       } else if (sep) el.scrollTop = sep.offsetTop - el.clientHeight / 3
       else el.scrollTop = el.scrollHeight
+      // Conversa curta não rola (sem evento de rolagem): o botão da anterior não pode ficar.
+      setAwayFromEnd(el.scrollHeight - el.scrollTop - el.clientHeight >= 80)
       return
     }
     if (restore.current != null) {
@@ -243,6 +247,7 @@ export function Conversation({
         onScroll={(e) => {
           const el = e.currentTarget
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+          setAwayFromEnd(!stick.current)
         }}
       >
         {conv.hasMore && !conv.loading && (
@@ -387,6 +392,11 @@ export function Conversation({
             onCancelReply={onCancelReply}
             editing={editing ? { id: editing.id, text: editing.body ?? '' } : null}
             onCancelEdit={onCancelEdit}
+            onJumpToEnd={
+              awayFromEnd
+                ? () => scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
+                : undefined
+            }
           />
         )}
       </div>
