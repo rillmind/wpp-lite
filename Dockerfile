@@ -11,10 +11,21 @@ RUN npm run build
 # Backend. A lib usa rustls + ring, então basta o compilador C da imagem.
 FROM docker.io/library/rust:1.97-slim-trixie AS back
 WORKDIR /src
-COPY Cargo.toml Cargo.lock rustfmt.toml ./
-COPY backend/ backend/
+# Dependências em uma camada própria (é ela que o cache da CI guarda): só recompilam quando o
+# Cargo.lock ou o Cargo.toml muda.
+COPY Cargo.toml Cargo.lock ./
+COPY backend/Cargo.toml backend/
+# - clean: tira só o programa vazio, para o de verdade ser compilado.
+# - touch: o build script do waproto grava este arquivo depois do carimbo do cargo, que por isso
+#   recompilaria toda a whatsapp-rust no passo seguinte.
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/src/target \
+    mkdir backend/src && echo 'fn main() {}' > backend/src/main.rs \
+    && cargo build --release --locked -p wpp-backend \
+    && cargo clean --release -p wpp-backend \
+    && rm -r backend/src \
+    && find target -name whatsapp.local.desc -exec touch -d 2000-01-01 {} +
+COPY backend/src/ backend/src/
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked -p wpp-backend \
     && cp target/release/wpp-backend /usr/local/bin/wpp-backend
 
