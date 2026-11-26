@@ -1,62 +1,124 @@
 import { useEffect, useState } from 'react'
 import { fetchImage } from './client'
 
-// Mídias baixadas (imagens, vídeos, áudios) ficam no cache do navegador (Cache Storage):
-// continuam lá ao recarregar a página ou reabrir o navegador, e só somem com o Ctrl+Shift+R
-// (ou Ctrl+F5), que pede tudo de novo. Nada vai para o banco. Fotos de perfil não entram:
-// mudam e precisam vir atualizadas. Na aba, cada uma vira uma URL de blob.
-const cache = new Map<string, Promise<string | null>>()
+// Mídias baixadas (imagens, vídeos, áudios, documentos) ficam guardadas no navegador, no
+// IndexedDB: continuam ao trocar de conversa, recarregar a página ou reabrir o navegador, e só
+// somem com o Ctrl+Shift+R (ou Ctrl+F5), que pede tudo de novo. IndexedDB, e não Cache
+// Storage, porque este só existe em HTTPS, e o app também é aberto por http (IP da rede ou do
+// Tailscale). Nada vai para o servidor. Fotos de perfil não entram: mudam e precisam vir
+// atualizadas. Na aba, cada mídia vira uma URL de blob.
+const urls = new Map<string, Promise<string | null>>()
+/** Já baixadas nesta aba: a URL de blob está pronta. */
+const loaded = new Set<string>()
 
-const STORE = 'wpp-midia'
+const DB_NAME = 'wpp-midia'
+const STORE = 'midia'
 const HARD_RELOAD_KEY = 'wpp.limparMidia'
 
-function storeSupported(): boolean {
-  return window.isSecureContext && 'caches' in window
+function done<T>(r: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    r.onsuccess = () => resolve(r.result)
+    r.onerror = () => reject(r.error)
+  })
 }
 
-/**
- * Recarga forçada: o navegador não diz à página se foi F5 ou Ctrl+Shift+R, então o atalho é
- * visto aqui e marcado; a página nova limpa o cache antes de baixar qualquer mídia.
- */
-const cleared: Promise<unknown> = (() => {
-  if (!storeSupported()) return Promise.resolve()
+/** Recarga forçada pedida na página anterior (o navegador não conta se foi F5 ou Ctrl+Shift+R). */
+function takeHardReload(): boolean {
   window.addEventListener('keydown', (e) => {
     const hard = (e.ctrlKey || e.metaKey) && ((e.shiftKey && e.key.toLowerCase() === 'r') || e.key === 'F5')
     if (!hard) return
     try {
       localStorage.setItem(HARD_RELOAD_KEY, '1')
     } catch {
-      // Sem storage: o cache fica.
+      // Sem storage: as mídias ficam.
     }
   })
   try {
-    if (localStorage.getItem(HARD_RELOAD_KEY) !== '1') return Promise.resolve()
+    if (localStorage.getItem(HARD_RELOAD_KEY) !== '1') return false
     localStorage.removeItem(HARD_RELOAD_KEY)
+    return true
   } catch {
-    return Promise.resolve()
+    return false
   }
-  return caches.delete(STORE).catch(() => undefined)
+}
+
+/** Banco das mídias, ou `null` sem IndexedDB (ex.: janela anônima de alguns navegadores). */
+const db: Promise<IDBDatabase | null> = (() => {
+  const clear = takeHardReload()
+  // Versão anterior guardava no Cache Storage (só em HTTPS): libera o espaço.
+  if ('caches' in window) void caches.delete('wpp-midia').catch(() => undefined)
+  if (!('indexedDB' in window)) return Promise.resolve(null)
+  const request = indexedDB.open(DB_NAME, 1)
+  request.onupgradeneeded = () => request.result.createObjectStore(STORE)
+  return done(request)
+    .then(async (conn) => {
+      if (clear) await done(conn.transaction(STORE, 'readwrite').objectStore(STORE).clear()).catch(() => undefined)
+      return conn
+    })
+    .catch(() => null)
 })()
 
+const storable = (path: string) => !path.endsWith('/avatar')
+
+async function getStored(path: string): Promise<Blob | null> {
+  const conn = await db
+  if (!conn) return null
+  try {
+    const value: unknown = await done(conn.transaction(STORE).objectStore(STORE).get(path))
+    return value instanceof Blob ? value : null
+  } catch {
+    return null
+  }
+}
+
+async function putStored(path: string, blob: Blob): Promise<void> {
+  const conn = await db
+  if (!conn) return
+  try {
+    await done(conn.transaction(STORE, 'readwrite').objectStore(STORE).put(blob, path))
+  } catch {
+    // Sem espaço (cota do navegador) ou outro erro: a mídia aparece igual, só não fica guardada.
+  }
+}
+
 async function fetchStored(path: string): Promise<Blob | null> {
-  if (!storeSupported() || path.endsWith('/avatar')) return fetchImage(path)
-  await cleared
-  const store = await caches.open(STORE).catch(() => null)
-  const hit = await store?.match(path).catch(() => undefined)
-  if (hit) return hit.blob()
+  if (!storable(path)) return fetchImage(path)
+  const hit = await getStored(path)
+  if (hit) return hit
   const blob = await fetchImage(path)
-  // Sem espaço (cota do navegador) ou outro erro: a mídia aparece igual, só não fica guardada.
-  if (blob && store) await store.put(path, new Response(blob, { headers: { 'Content-Type': blob.type } })).catch(() => undefined)
+  if (blob) await putStored(path, blob)
   return blob
 }
 
+/** Já está pronta nesta aba (dá para mostrar sem esperar). */
+export function isLoaded(path: string): boolean {
+  return loaded.has(path)
+}
+
+/** Já foi baixada antes: nesta aba ou guardada no navegador. */
+export async function isStored(path: string): Promise<boolean> {
+  if (loaded.has(path)) return true
+  if (!storable(path)) return false
+  const conn = await db
+  if (!conn) return false
+  try {
+    return (await done(conn.transaction(STORE).objectStore(STORE).count(path))) > 0
+  } catch {
+    return false
+  }
+}
+
 export function loadImage(path: string): Promise<string | null> {
-  let p = cache.get(path)
+  let p = urls.get(path)
   if (!p) {
-    p = fetchStored(path).then((blob) => (blob ? URL.createObjectURL(blob) : null))
-    // Falha (rede, WhatsApp desconectado) não fica no cache: tenta de novo depois.
-    p.catch(() => cache.delete(path))
-    cache.set(path, p)
+    p = fetchStored(path).then((blob) => {
+      if (!blob) return null
+      loaded.add(path)
+      return URL.createObjectURL(blob)
+    })
+    // Falha (rede, WhatsApp desconectado) não fica guardada: tenta de novo depois.
+    p.catch(() => urls.delete(path))
+    urls.set(path, p)
   }
   return p
 }

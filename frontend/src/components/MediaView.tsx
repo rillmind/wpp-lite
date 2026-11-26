@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '../api/client'
-import { useImage } from '../api/images'
+import { isLoaded, isStored, useImage } from '../api/images'
 import type { Message } from '../api/types'
 import { formatBytes, formatDuration } from './format'
 import { Icon } from './Icon'
@@ -30,12 +30,25 @@ function boxSize(m: Message): CSSProperties {
 }
 
 /**
- * Imagem, figurinha, vídeo ou áudio de uma mensagem. Só baixa quando a pessoa clica;
- * o arquivo fica na memória da aba (ver `api/images.ts`).
+ * Imagem, figurinha, vídeo ou áudio de uma mensagem. Só baixa quando a pessoa clica; o que já
+ * foi baixado aparece direto, ao reabrir a conversa ou a página (ver `api/images.ts`).
  */
 export function MediaView({ chatJid, message }: { chatJid: string; message: Message }) {
-  // Cada tentativa remonta o download (uma falha não fica em cache).
-  const [attempt, setAttempt] = useState(0)
+  const path = api.mediaPath(chatJid, message.id)
+  // Cada tentativa remonta o download (uma falha não fica guardada). 0 = ainda não pedida.
+  const [attempt, setAttempt] = useState(() => (isLoaded(path) ? 1 : 0))
+  // Pedida agora, com clique: só então vídeo e áudio tocam e o documento é salvo.
+  const [clicked, setClicked] = useState(false)
+  useEffect(() => {
+    if (attempt !== 0) return
+    let alive = true
+    void isStored(path).then((hit) => {
+      if (alive && hit) setAttempt((a) => a || 1)
+    })
+    return () => {
+      alive = false
+    }
+  }, [path, attempt])
   const kind = message.kind
   const label = kind === 'doc' ? (message.media?.file_name ?? LABEL.doc) : (LABEL[kind] ?? 'Mídia')
   const details = [
@@ -46,7 +59,14 @@ export function MediaView({ chatJid, message }: { chatJid: string; message: Mess
   return (
     <div className={`media media--${kind}`} style={boxSize(message)}>
       {attempt === 0 ? (
-        <button type="button" className="media__download" onClick={() => setAttempt(1)}>
+        <button
+          type="button"
+          className="media__download"
+          onClick={() => {
+            setClicked(true)
+            setAttempt(1)
+          }}
+        >
           <span className="media__icon" aria-hidden="true">
             <Icon name={kind === 'audio' || kind === 'video' ? 'play' : kind === 'doc' ? 'file' : 'download'} size={20} />
           </span>
@@ -56,10 +76,14 @@ export function MediaView({ chatJid, message }: { chatJid: string; message: Mess
       ) : (
         <Download
           key={attempt}
-          path={api.mediaPath(chatJid, message.id)}
+          path={path}
           kind={kind}
           label={label}
-          onRetry={() => setAttempt((a) => a + 1)}
+          clicked={clicked}
+          onRetry={() => {
+            setClicked(true)
+            setAttempt((a) => a + 1)
+          }}
         />
       )}
     </div>
@@ -70,10 +94,12 @@ interface DownloadProps {
   path: string
   kind: string
   label: string
+  /** Pedida com clique agora; sem isso (já baixada antes) não toca nem salva sozinha. */
+  clicked: boolean
   onRetry: () => void
 }
 
-function Download({ path, kind, label, onRetry }: DownloadProps) {
+function Download({ path, kind, label, clicked, onRetry }: DownloadProps) {
   const file = useImage(path, true)
   const [zoom, setZoom] = useState(false)
   const save = useRef<HTMLAnchorElement>(null)
@@ -81,13 +107,13 @@ function Download({ path, kind, label, onRetry }: DownloadProps) {
   // Documento: assim que baixa, entrega ao navegador para salvar (uma vez).
   const readyUrl = file.status === 'ready' ? file.url : null
   useEffect(() => {
-    if (kind === 'doc' && readyUrl) save.current?.click()
-  }, [kind, readyUrl])
+    if (kind === 'doc' && readyUrl && clicked) save.current?.click()
+  }, [kind, readyUrl, clicked])
 
   if (file.status === 'ready') {
     // Vídeo e áudio já tocam: o clique em "baixar" foi o pedido para ver/ouvir.
-    if (kind === 'video') return <video src={file.url} controls autoPlay playsInline />
-    if (kind === 'audio') return <audio src={file.url} controls autoPlay />
+    if (kind === 'video') return <video src={file.url} controls autoPlay={clicked} playsInline />
+    if (kind === 'audio') return <audio src={file.url} controls autoPlay={clicked} />
     if (kind === 'doc')
       return (
         <a ref={save} className="media__download media__saved" href={file.url} download={label}>
