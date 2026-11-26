@@ -579,11 +579,25 @@ code {
 .composer > * {
   pointer-events: auto;
 }
-.composer__row {
+.composer__row,
+.composer__jump {
   pointer-events: none;
 }
-.composer__row > * {
+.composer__row > *,
+.composer__jump > * {
   pointer-events: auto;
+}
+/* Voltar ao fim: acima da caixa, no canto direito. */
+.composer__jump {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+.composer__jump .btn {
+  background: color-mix(in srgb, var(--pal-surface0) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 /* Cápsulas flutuantes de vidro. */
 .composer__input,
@@ -1354,6 +1368,18 @@ code {
   50% {
     opacity: 0.3;
   }
+}
+/* Enviar, gravar e voltar ao fim: círculos do mesmo tamanho. */
+.composer .composer__action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
 }
 .composer__mic {
   touch-action: none;
