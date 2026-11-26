@@ -762,9 +762,11 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
       }
       return
     }
+    // A resposta sai já da tela: a próxima mensagem (escrita enquanto esta envia) não é resposta.
+    const quoted = replyTo?.chat_jid === jid ? replyTo.id : null
+    setReplyTo(null)
     try {
-      const m = await api.send(jid, text, replyTo?.chat_jid === jid ? replyTo.id : null)
-      setReplyTo(null)
+      const m = await api.send(jid, text, quoted)
       setConv((c) =>
         c?.jid === jid && !c.messages.some((x) => x.id === m.id) ? { ...c, messages: [...c.messages, m] } : c,
       )

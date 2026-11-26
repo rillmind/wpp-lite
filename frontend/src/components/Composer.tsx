@@ -105,7 +105,10 @@ export function Composer({
   const picker = useRef<HTMLInputElement>(null)
   // O que está escrito vira o rascunho da conversa (some ao enviar).
   // Editando uma mensagem, a caixa não é rascunho: o rascunho volta ao terminar.
+  const textRef = useRef(text)
+  const queue = useRef(Promise.resolve())
   const setText = (value: string) => {
+    textRef.current = value
     setTextState(value)
     if (!editingRef.current) setDraft(jid, value)
   }
@@ -261,19 +264,28 @@ export function Composer({
       }
       return
     }
+    if (files.length === 0) {
+      // Texto: a caixa esvazia na hora, para já escrever a próxima. Os envios entram numa
+      // fila (chegam na ordem); se um falhar, o texto volta para a caixa se ela estiver vazia.
+      setText('')
+      setError(null)
+      queue.current = queue.current.then(() =>
+        onSend(value).catch((e) => {
+          setError(e instanceof Error ? e.message : 'Falha ao enviar')
+          if (textRef.current === '') setText(value)
+        }),
+      )
+      return
+    }
     setSending(true)
     setError(null)
     try {
-      if (files.length === 0) {
-        await onSend(value)
-      } else {
-        // O texto vira a legenda do primeiro arquivo.
-        let caption: string | null = value || null
-        for (const p of files) {
-          await onSendFile(p.file, caption, await probe(p.file))
-          caption = null
-          removeFile(p.id)
-        }
+      // O texto vira a legenda do primeiro arquivo.
+      let caption: string | null = value || null
+      for (const p of files) {
+        await onSendFile(p.file, caption, await probe(p.file))
+        caption = null
+        removeFile(p.id)
       }
       setText('')
     } catch (e) {
