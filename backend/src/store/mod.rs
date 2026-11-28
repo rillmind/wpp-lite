@@ -824,8 +824,9 @@ impl Db {
   }
 
   /// Contatos salvos na agenda do celular, cada um como a conversa com ele: a que já existe
-  /// ou uma ainda vazia (não gravada), como em [`Self::chat_for_person`]. Conversa excluída
-  /// no app volta como vazia (o que havia nela continua escondido). Em ordem de nome.
+  /// ou uma ainda vazia (não gravada), como em [`Self::chat_for_person`]; e os grupos.
+  /// Conversa excluída no app volta como vazia (o que havia nela continua escondido). Em
+  /// ordem de nome.
   pub fn contacts(&self) -> Result<Vec<ChatSummary>> {
     let mut stmt = self.conn.prepare(
       "SELECT jid FROM contacts
@@ -835,17 +836,22 @@ impl Db {
     let jids = stmt
       .query_map([], |r| r.get::<_, String>(0))?
       .collect::<rusqlite::Result<Vec<_>>>()?;
-    let mut out = Vec::with_capacity(jids.len());
+    let mut groups = self
+      .conn
+      .prepare("SELECT jid FROM chats WHERE is_group = 1 AND jid LIKE '%@g.us'")?;
+    let groups = groups
+      .query_map([], |r| r.get::<_, String>(0))?
+      .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut out = Vec::with_capacity(jids.len() + groups.len());
+    for group in groups {
+      out.extend(self.get_chat(&group)?);
+    }
+    for chat in &mut out {
+      blank_if_deleted(chat);
+    }
     for jid in jids {
       let mut chat = self.chat_for_person(&jid)?;
-      if chat.deleted {
-        chat.deleted = false;
-        chat.unread_count = 0;
-        chat.last_msg_ts = None;
-        chat.last_msg_preview = None;
-        chat.last_status = None;
-        chat.last_sender = None;
-      }
+      blank_if_deleted(&mut chat);
       out.push(chat);
     }
     out.sort_by_cached_key(|c| fold(c.name.as_deref().unwrap_or("")));
@@ -1240,6 +1246,18 @@ pub fn fold(text: &str) -> String {
       other => other,
     })
     .collect()
+}
+
+/// Conversa excluída no app, como contato: vazia (o que havia nela continua escondido).
+fn blank_if_deleted(chat: &mut ChatSummary) {
+  if chat.deleted {
+    chat.deleted = false;
+    chat.unread_count = 0;
+    chat.last_msg_ts = None;
+    chat.last_msg_preview = None;
+    chat.last_status = None;
+    chat.last_sender = None;
+  }
 }
 
 /// Parte antes do `@` (os dígitos do telefone num jid `@s.whatsapp.net`).

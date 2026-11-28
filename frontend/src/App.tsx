@@ -90,10 +90,12 @@ function loadFlag(key: string, fallback: boolean): boolean {
 }
 
 /** Mesma ordem do backend: fixadas primeiro, depois por atividade. */
-/** Contatos da agenda que ainda não têm conversa vão no fim da lista, em ordem de nome. */
+/** Contatos da agenda e grupos sem nenhuma mensagem vão no fim da lista, em ordem de nome. */
 function withContacts(chats: Chat[], contacts: Chat[]): Chat[] {
-  const known = new Set(chats.map((c) => c.jid))
-  return [...chats, ...contacts.filter((c) => !known.has(c.jid))]
+  const isContact = new Set(contacts.map((c) => c.jid))
+  const active = chats.filter((c) => c.last_msg_ts != null || !isContact.has(c.jid))
+  const known = new Set(active.map((c) => c.jid))
+  return [...active, ...contacts.filter((c) => !known.has(c.jid))]
 }
 
 /** Contato como conversa ainda vazia (ao excluir a conversa no app, ele continua na lista). */
@@ -964,7 +966,7 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             title="Nova conversa"
             onClick={() => setNewChatOpen(true)}
           >
-            <Icon name="plus" size={26} />
+            <Icon name="plus" size={20} />
           </button>
         )}
         {newChatOpen && <NewChatDialog onPick={startChat} onClose={() => setNewChatOpen(false)} />}

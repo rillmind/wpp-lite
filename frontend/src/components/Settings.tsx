@@ -88,8 +88,8 @@ export function Settings({
         <span>
           <span className="setting__name">Listar contatos em "Conversas"</span>
           <span className="setting__hint">
-            Os contatos da agenda do celular sem nenhuma mensagem aparecem no fim da lista. A busca e o botão "+"
-            acham eles sempre.
+            Os contatos da agenda do celular e os grupos sem nenhuma mensagem aparecem no fim da lista. A busca e o
+            botão "+" acham eles sempre.
           </span>
         </span>
       </label>
@@ -97,7 +97,8 @@ export function Settings({
         <span>
           <span className="setting__name">Contatos do celular</span>
           <span className="setting__hint">
-            Busca de novo os nomes da agenda, como ao conectar o app pela primeira vez. Não traz mensagens.
+            Busca de novo os nomes da agenda e os grupos, como ao conectar o app pela primeira vez. Não traz
+            mensagens.
           </span>
           {resync.result && (
             <span className="setting__hint" role="status">

@@ -11,7 +11,7 @@ interface Props {
   onClose: () => void
 }
 
-/** "Nova conversa": todos os contatos salvos na agenda do celular, com busca. */
+/** "Nova conversa": todos os contatos salvos na agenda do celular e os grupos, com busca. */
 export function NewChatDialog({ onPick, onClose }: Props) {
   const [contacts, setContacts] = useState<Chat[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -34,8 +34,8 @@ export function NewChatDialog({ onPick, onClose }: Props) {
       <input
         className="dialog__search"
         type="search"
-        placeholder="Buscar contato"
-        aria-label="Buscar contato"
+        placeholder="Buscar contato ou grupo"
+        aria-label="Buscar contato ou grupo"
         value={query}
         autoFocus
         onChange={(e) => setQuery(e.target.value)}
@@ -49,7 +49,7 @@ export function NewChatDialog({ onPick, onClose }: Props) {
       ) : options.length === 0 ? (
         <p className="dialog__text">
           {contacts.length === 0
-            ? 'Nenhum contato da agenda ainda. Use "Contatos do celular" nas configurações.'
+            ? 'Nenhum contato nem grupo ainda. Use "Contatos do celular" nas configurações.'
             : 'Nenhum contato encontrado.'}
         </p>
       ) : (

@@ -100,6 +100,27 @@ pub async fn backfill_titles(store: Store, wa: Arc<dyn WhatsApp>, tx: mpsc::Send
   }
   tracing::info!(chats = jids.len(), found, "nomes de grupos conferidos");
 
+  // Grupos de que a pessoa participa, mesmo sem nenhuma mensagem guardada: viram conversas
+  // (vazias) e aparecem como contatos. Uma consulta traz todos, com o nome.
+  match wa.groups().await {
+    Ok(groups) => {
+      let n = groups.len();
+      for (jid, name) in groups {
+        let meta = crate::model::ChatMeta {
+          jid,
+          name: (!name.is_empty()).then_some(name),
+          is_group: true,
+          ..Default::default()
+        };
+        if tx.send(WaEvent::ChatMeta(meta)).await.is_err() {
+          return;
+        }
+      }
+      tracing::info!(grupos = n, "grupos conferidos");
+    }
+    Err(e) => tracing::warn!(error = %e, "falha ao buscar os grupos"),
+  }
+
   // Canais: uma consulta traz o nome de todos os assinados.
   match wa.channels().await {
     Ok(channels) => {

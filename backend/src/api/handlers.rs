@@ -14,7 +14,9 @@ use tokio_stream::wrappers::BroadcastStream;
 
 use super::error::{ApiError, ApiResult};
 use super::{ApiEvent, AppState};
-use crate::model::{ChatAction, ConnState, Message, MessageAction, MessageKind, MsgStatus, Quote};
+use crate::model::{
+  ChatAction, ChatMeta, ConnState, Message, MessageAction, MessageKind, MsgStatus, Quote,
+};
 use crate::store::ChatSummary;
 use crate::wa::{OutgoingMedia, UnreadRef};
 
@@ -133,7 +135,8 @@ pub async fn messages(
       }
       // Sem mais aqui, o "carregar mensagens" ainda pode pedir ao celular, desde que haja
       // alguma mensagem guardada (mesmo escondida) para servir de ponto de partida.
-      let has_more = more_here || db.oldest_message(&jid)?.is_some() || is_person(&jid);
+      // Conversa vazia (contato ou grupo sem nada guardado) também pode pedir ao celular.
+      let has_more = more_here || db.oldest_message(&jid)?.is_some() || !is_read_only(&jid);
       Ok(Some(MessagesResponse {
         messages,
         first_unread_id: first_unread.map(|m| m.id),
@@ -188,9 +191,9 @@ pub async fn load_older(
     .await?
     .ok_or(ApiError::NotFound)?;
   let missing = count.saturating_sub(messages.len() as u32);
-  // Sem nenhuma mensagem guardada, numa conversa individual, o pedido parte de agora (sem
-  // id): o celular manda as mais recentes que tiver. Em grupo não há de onde partir.
-  let anchor = anchor.or_else(|| is_person(&jid).then(|| empty_anchor(&jid)));
+  // Sem nenhuma mensagem guardada, o pedido parte de agora (sem id): o celular manda as
+  // mais recentes que tiver.
+  let anchor = anchor.or_else(|| (!is_read_only(&jid)).then(|| empty_anchor(&jid)));
   let requested = match (&anchor, missing) {
     (Some(anchor), n) if n > 0 && !is_read_only(&jid) => {
       ensure_connected(&st)?;
@@ -1242,11 +1245,42 @@ pub async fn contacts(State(st): State<AppState>) -> ApiResult<Json<Vec<ChatSumm
   Ok(Json(st.store.run(|db| db.contacts()).await?))
 }
 
-/// Pede ao celular a agenda inteira de novo, como num aparelho recém-pareado. Nenhuma
-/// mensagem vem junto; os nomes chegam depois, como eventos (pelo SSE).
+/// Pede ao celular a agenda inteira de novo, como num aparelho recém-pareado, e confere os
+/// grupos de que a pessoa participa. Nenhuma mensagem vem junto; os nomes chegam depois,
+/// como eventos (pelo SSE).
 pub async fn resync_contacts(State(st): State<AppState>) -> ApiResult<StatusCode> {
   ensure_connected(&st)?;
   st.wa.resync_contacts().await.map_err(ApiError::Upstream)?;
+  tokio::spawn(async move {
+    let groups = match st.wa.groups().await {
+      Ok(g) => g,
+      Err(e) => return tracing::warn!(error = %e, "falha ao buscar os grupos"),
+    };
+    let updated = st
+      .store
+      .run(move |db| {
+        let mut out = Vec::with_capacity(groups.len());
+        for (jid, name) in groups {
+          db.upsert_chat(&ChatMeta {
+            jid: jid.clone(),
+            name: (!name.is_empty()).then_some(name),
+            is_group: true,
+            ..Default::default()
+          })?;
+          out.extend(db.get_chat(&jid)?);
+        }
+        Ok(out)
+      })
+      .await;
+    match updated {
+      Ok(chats) => {
+        for chat in chats {
+          let _ = st.events.send(ApiEvent::ChatUpdated(chat));
+        }
+      }
+      Err(e) => tracing::warn!(error = %e, "falha ao guardar os grupos"),
+    }
+  });
   Ok(StatusCode::NO_CONTENT)
 }
 

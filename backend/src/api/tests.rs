@@ -170,6 +170,10 @@ impl WhatsApp for FakeWa {
     Ok(vec![])
   }
 
+  async fn groups(&self) -> Result<Vec<(String, String)>> {
+    Ok(vec![])
+  }
+
   async fn chat_title(&self, _jid: &str) -> Result<Option<String>> {
     Ok(None)
   }

@@ -215,6 +215,10 @@ pub trait WhatsApp: Send + Sync {
   /// Canais assinados: (jid, nome).
   async fn channels(&self) -> Result<Vec<(String, String)>>;
 
+  /// Grupos de que a pessoa participa: (jid, assunto). Comunidades (o grupo-pai, que não
+  /// recebe mensagens) ficam de fora.
+  async fn groups(&self) -> Result<Vec<(String, String)>>;
+
   /// Assunto do grupo; `None` para outros jids.
   async fn chat_title(&self, jid: &str) -> Result<Option<String>>;
 
