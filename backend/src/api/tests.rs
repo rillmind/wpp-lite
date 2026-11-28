@@ -421,8 +421,13 @@ async fn messages_include_all_unread_and_marker() {
 #[tokio::test]
 async fn messages_unknown_chat_and_bad_jid() {
   let h = harness();
-  let (code, _) = call(&h, "GET", "/api/chats/999@s.whatsapp.net/messages", None).await;
+  let (code, _) = call(&h, "GET", "/api/chats/999-1@g.us/messages", None).await;
   assert_eq!(code, StatusCode::NOT_FOUND);
+  // Pessoa sem conversa ainda (contato da agenda): vazia, e dá para pedir ao celular.
+  let (code, body) = call(&h, "GET", "/api/chats/999@s.whatsapp.net/messages", None).await;
+  assert_eq!(code, StatusCode::OK);
+  assert_eq!(body["messages"].as_array().unwrap().len(), 0);
+  assert_eq!(body["has_more"], true);
   let (code, _) = call(&h, "GET", "/api/chats/sem-arroba/messages", None).await;
   assert_eq!(code, StatusCode::BAD_REQUEST);
 }
@@ -1200,6 +1205,34 @@ async fn load_older_uses_stored_messages_first() {
     h.wa.history_requests.lock().unwrap()[0],
     ("1".to_string(), 18)
   );
+}
+
+#[tokio::test]
+async fn load_older_asks_phone_for_empty_person_chat() {
+  let h = harness();
+  // Contato sem nenhuma mensagem guardada: o pedido parte de agora, sem id.
+  let (status, out) = call(
+    &h,
+    "POST",
+    "/api/chats/999@s.whatsapp.net/load-older",
+    Some(json!({})),
+  )
+  .await;
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(out["requested"], true);
+  assert_eq!(
+    h.wa.history_requests.lock().unwrap()[0],
+    (String::new(), 20)
+  );
+  // Grupo desconhecido continua sem existir.
+  let (status, _) = call(
+    &h,
+    "POST",
+    "/api/chats/999-1@g.us/load-older",
+    Some(json!({})),
+  )
+  .await;
+  assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

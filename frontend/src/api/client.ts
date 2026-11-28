@@ -93,6 +93,8 @@ const enc = encodeURIComponent
 
 export const api = {
   chats: () => request<Chat[]>('/api/chats?limit=500'),
+  /** Contatos da agenda do celular, cada um como a conversa com ele (vazia se não houver). */
+  contacts: () => request<Chat[]>('/api/contacts'),
   /** Busca local: conversas pelo nome e mensagens pelo texto (mais novas primeiro). */
   search: (q: string, signal?: AbortSignal) =>
     request<{ chats: Chat[]; messages: Message[] }>(`/api/search?q=${enc(q)}`, { signal }),

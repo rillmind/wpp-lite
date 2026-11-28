@@ -12,6 +12,7 @@ import { ChatMenu, type MenuAction } from './components/ChatMenu'
 import type { FileMeta } from './components/Composer'
 import { Confirm, type ConfirmRequest } from './components/Dialog'
 import { ForwardDialog } from './components/ForwardDialog'
+import { NewChatDialog } from './components/NewChatDialog'
 import type { MessagePick } from './components/MessageMenu'
 import { Conversation, type ConvState } from './components/Conversation'
 import { Login } from './components/Login'
@@ -39,6 +40,7 @@ import { notifyState, showNotification, toggleNotify, type NotifyState } from '.
 // Marcada: abrir a conversa não envia recibo de leitura. Desmarcada (padrão): envia.
 const NO_READ_KEY = 'wpp.noRead'
 const TYPING_IN_LIST_KEY = 'wpp.typingInList'
+const LIST_CONTACTS_KEY = 'wpp.listContacts'
 /** Espera para a notificação do app vir depois da do celular. */
 const NOTIFY_DELAY_MS = 1500
 /** Mais velha que isso (ex.: entregue na reconexão), não notifica. */
@@ -59,6 +61,9 @@ const FOCUS_MAX_PAGES = 25
 const SEARCH_DELAY_MS = 250
 /** Sem novo aviso de "digitando" por este tempo, considera que parou. */
 const TYPING_TTL_MS = 8000
+
+/** Depois de ressincronizar os contatos, espera a agenda chegar antes de recarregar a lista. */
+const RESYNC_RELOAD_MS = 15_000
 
 /** Quantas conversas individuais recentes acompanhar além da aberta (cada uma é um pedido ao WhatsApp). */
 const WATCH_RECENT = 30
@@ -85,6 +90,17 @@ function loadFlag(key: string, fallback: boolean): boolean {
 }
 
 /** Mesma ordem do backend: fixadas primeiro, depois por atividade. */
+/** Contatos da agenda que ainda não têm conversa vão no fim da lista, em ordem de nome. */
+function withContacts(chats: Chat[], contacts: Chat[]): Chat[] {
+  const known = new Set(chats.map((c) => c.jid))
+  return [...chats, ...contacts.filter((c) => !known.has(c.jid))]
+}
+
+/** Contato como conversa ainda vazia (ao excluir a conversa no app, ele continua na lista). */
+function blankContact(c: Chat): Chat {
+  return { ...c, unread_count: 0, last_msg_ts: null, last_msg_preview: null, last_status: null, last_sender: null }
+}
+
 function byActivity(a: Chat, b: Chat): number {
   if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
   return (b.last_msg_ts ?? -1) - (a.last_msg_ts ?? -1)
@@ -147,6 +163,8 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null)
   const [noRead, setNoRead] = useState(() => loadFlag(NO_READ_KEY, false))
   const [typingInList, setTypingInList] = useState(() => loadFlag(TYPING_IN_LIST_KEY, true))
+  const [listContacts, setListContacts] = useState(() => loadFlag(LIST_CONTACTS_KEY, true))
+  const [newChatOpen, setNewChatOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const appearance = useTheme()
   // Sobe quando o stream reabre: o servidor pode ter reiniciado e esquecido o que acompanhar.
@@ -197,8 +215,19 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     [onUnauthorized],
   )
 
+  // Contatos da agenda (por jid), para a conversa excluída no app voltar como contato.
+  const contactsRef = useRef(new Map<string, Chat>())
   const loadChats = useCallback(() => {
-    api.chats().then(setChats, fail).finally(hideSplash)
+    // Sem os contatos (erro), a lista sai só com as conversas.
+    const contacts = api.contacts().catch(() => [] as Chat[])
+    api
+      .chats()
+      .then(async (chats) => {
+        const list = await contacts
+        contactsRef.current = new Map(list.map((c) => [c.jid, c]))
+        setChats(withContacts(chats, list))
+      }, fail)
+      .finally(hideSplash)
   }, [fail])
 
   const openChat = useCallback(
@@ -316,10 +345,13 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           setConn(ev.data.state)
           break
         case 'chat.updated':
-          // Excluída no app: só volta para a lista quando chegar mensagem nova.
+          // Excluída no app: só volta para a lista quando chegar mensagem nova (ou, se for um
+          // contato da agenda, fica como conversa vazia, no fim).
           setChats((cs) => {
             const rest = cs.filter((c) => c.jid !== ev.data.jid)
-            return ev.data.deleted ? rest : [ev.data, ...rest].sort(byActivity)
+            if (!ev.data.deleted) return [ev.data, ...rest].sort(byActivity)
+            const contact = contactsRef.current.get(ev.data.jid)
+            return contact ? withContacts(rest, [blankContact(contact)]) : rest
           })
           break
         case 'chat.typing': {
@@ -792,10 +824,24 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
   async function resyncContacts(): Promise<string | null> {
     try {
       await api.resyncContacts()
+      // A agenda chega aos poucos depois do pedido: recarrega a lista para os contatos novos.
+      setTimeout(loadChats, RESYNC_RELOAD_MS)
       return null
     } catch (e) {
       return fail(e)
     }
+  }
+
+  function toggleListContacts() {
+    setListContacts(!listContacts)
+    saveFlag(LIST_CONTACTS_KEY, !listContacts)
+  }
+
+  /** "Nova conversa": abre a conversa com o contato escolhido, mesmo que ainda não exista. */
+  function startChat(chat: Chat) {
+    setNewChatOpen(false)
+    if (!chats.some((c) => c.jid === chat.jid)) setDraftChat(chat)
+    select(chat.jid)
   }
 
   function toggleTypingInList() {
@@ -803,14 +849,15 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
     saveFlag(TYPING_IN_LIST_KEY, !typingInList)
   }
 
-  const visible = useMemo(
-    () =>
-      section === 'unread'
-        ? // A conversa aberta fica na lista até sair dela: senão sumiria assim que é lida.
-          chats.filter((c) => chatSection(c) === 'chats' && (c.unread_count > 0 || c.jid === selected))
-        : chats.filter((c) => chatSection(c) === section),
-    [chats, section, selected],
-  )
+  const visible = useMemo(() => {
+    // Contato da agenda sem nenhuma mensagem: só aparece com a opção ligada (ou aberto).
+    const shown = (c: Chat) =>
+      listContacts || c.last_msg_ts != null || c.jid === selected || !contactsRef.current.has(c.jid)
+    return section === 'unread'
+      ? // A conversa aberta fica na lista até sair dela: senão sumiria assim que é lida.
+        chats.filter((c) => chatSection(c) === 'chats' && (c.unread_count > 0 || c.jid === selected))
+      : chats.filter((c) => chatSection(c) === section && shown(c))
+  }, [chats, section, selected, listContacts])
   const unread = useMemo(() => {
     const n: Record<Section, number> = { chats: 0, unread: 0, archived: 0, status: 0, channels: 0 }
     for (const c of chats) if (c.unread_count > 0) n[chatSection(c)] += 1
@@ -909,6 +956,18 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
             empty={section === 'unread' ? 'Nenhuma conversa não lida.' : undefined}
           />
         )}
+        {section === 'chats' && !query && (
+          <button
+            type="button"
+            className="new-chat"
+            aria-label="Nova conversa"
+            title="Nova conversa"
+            onClick={() => setNewChatOpen(true)}
+          >
+            <Icon name="plus" size={26} />
+          </button>
+        )}
+        {newChatOpen && <NewChatDialog onPick={startChat} onClose={() => setNewChatOpen(false)} />}
         {menu && (
           <ChatMenu
             chat={menu.chat}
@@ -967,6 +1026,8 @@ function Client({ onUnauthorized }: { onUnauthorized: () => void }) {
           onToggleNoRead={toggleNoRead}
           typingInList={typingInList}
           onToggleTypingInList={toggleTypingInList}
+          listContacts={listContacts}
+          onToggleListContacts={toggleListContacts}
           onResyncContacts={resyncContacts}
           onClose={() => setSettingsOpen(false)}
         />

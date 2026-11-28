@@ -5,6 +5,7 @@
 
 mod migrations;
 
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
@@ -822,6 +823,35 @@ impl Db {
     Ok(self.conn.query_row(&sql, params![target], chat_from_row)?)
   }
 
+  /// Contatos salvos na agenda do celular, cada um como a conversa com ele: a que já existe
+  /// ou uma ainda vazia (não gravada), como em [`Self::chat_for_person`]. Conversa excluída
+  /// no app volta como vazia (o que havia nela continua escondido). Em ordem de nome.
+  pub fn contacts(&self) -> Result<Vec<ChatSummary>> {
+    let mut stmt = self.conn.prepare(
+      "SELECT jid FROM contacts
+       WHERE contact_name IS NOT NULL AND jid LIKE '%@s.whatsapp.net'
+         AND jid NOT IN (SELECT jid FROM me)",
+    )?;
+    let jids = stmt
+      .query_map([], |r| r.get::<_, String>(0))?
+      .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut out = Vec::with_capacity(jids.len());
+    for jid in jids {
+      let mut chat = self.chat_for_person(&jid)?;
+      if chat.deleted {
+        chat.deleted = false;
+        chat.unread_count = 0;
+        chat.last_msg_ts = None;
+        chat.last_msg_preview = None;
+        chat.last_status = None;
+        chat.last_sender = None;
+      }
+      out.push(chat);
+    }
+    out.sort_by_cached_key(|c| fold(c.name.as_deref().unwrap_or("")));
+    Ok(out)
+  }
+
   /// `@lid` (conversas individuais e remetentes em grupos) sem telefone conhecido.
   pub fn unmapped_lids(&self) -> Result<Vec<String>> {
     let mut stmt = self.conn.prepare(
@@ -945,7 +975,15 @@ impl Db {
       && needle
         .chars()
         .all(|c| c.is_ascii_digit() || " +-()".contains(c));
-    let all = self.list_chats(u32::MAX, None)?;
+    // Também os contatos da agenda que ainda não têm conversa, depois das conversas.
+    let mut all = self.list_chats(u32::MAX, None)?;
+    let known: HashSet<String> = all.iter().map(|c| c.jid.clone()).collect();
+    all.extend(
+      self
+        .contacts()?
+        .into_iter()
+        .filter(|c| !known.contains(&c.jid)),
+    );
     Ok(
       all
         .into_iter()

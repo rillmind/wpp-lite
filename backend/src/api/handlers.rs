@@ -110,7 +110,13 @@ pub async fn messages(
     .store
     .run(move |db| {
       if db.get_chat(&jid)?.is_none() {
-        return Ok(None);
+        // Conversa com um contato ainda sem nenhuma mensagem: vazia, e o "carregar
+        // mensagens" pede ao celular as que ele tiver.
+        return Ok(is_person(&jid).then(|| MessagesResponse {
+          messages: vec![],
+          first_unread_id: None,
+          has_more: true,
+        }));
       }
       let first_unread = db.first_unread(&jid)?;
       // Na primeira página, garante que todas as não lidas venham.
@@ -127,7 +133,7 @@ pub async fn messages(
       }
       // Sem mais aqui, o "carregar mensagens" ainda pode pedir ao celular, desde que haja
       // alguma mensagem guardada (mesmo escondida) para servir de ponto de partida.
-      let has_more = more_here || db.oldest_message(&jid)?.is_some();
+      let has_more = more_here || db.oldest_message(&jid)?.is_some() || is_person(&jid);
       Ok(Some(MessagesResponse {
         messages,
         first_unread_id: first_unread.map(|m| m.id),
@@ -170,7 +176,7 @@ pub async fn load_older(
     .store
     .run(move |db| {
       if db.get_chat(&j)?.is_none() {
-        return Ok(None);
+        return Ok(is_person(&j).then(|| (vec![], None)));
       }
       // O primeiro "carregar" mostra (de vez) a âncora guardada da sincronização.
       db.reveal_hidden(&j)?;
@@ -182,7 +188,9 @@ pub async fn load_older(
     .await?
     .ok_or(ApiError::NotFound)?;
   let missing = count.saturating_sub(messages.len() as u32);
-  // Sem nenhuma mensagem guardada não há de onde partir o pedido ao celular.
+  // Sem nenhuma mensagem guardada, numa conversa individual, o pedido parte de agora (sem
+  // id): o celular manda as mais recentes que tiver. Em grupo não há de onde partir.
+  let anchor = anchor.or_else(|| is_person(&jid).then(|| empty_anchor(&jid)));
   let requested = match (&anchor, missing) {
     (Some(anchor), n) if n > 0 && !is_read_only(&jid) => {
       ensure_connected(&st)?;
@@ -1162,6 +1170,36 @@ fn outgoing_kind(mimetype: &str) -> MessageKind {
   }
 }
 
+/// Conversa individual (pelo telefone ou pelo `@lid`).
+fn is_person(jid: &str) -> bool {
+  jid.ends_with("@s.whatsapp.net") || jid.ends_with("@lid")
+}
+
+/// Ponto de partida do pedido ao celular numa conversa sem nenhuma mensagem guardada.
+fn empty_anchor(chat_jid: &str) -> Message {
+  Message {
+    id: String::new(),
+    chat_jid: chat_jid.to_string(),
+    sender_jid: None,
+    sender_name: None,
+    from_me: false,
+    ts: std::time::SystemTime::now()
+      .duration_since(std::time::UNIX_EPOCH)
+      .map_or(0, |d| d.as_secs() as i64),
+    kind: MessageKind::Text,
+    body: None,
+    quoted_id: None,
+    status: None,
+    is_read: true,
+    media: None,
+    edited: false,
+    starred: false,
+    pinned: false,
+    mentions: vec![],
+    reactions: vec![],
+  }
+}
+
 fn is_read_only(jid: &str) -> bool {
   jid == "status@broadcast" || jid.ends_with("@newsletter")
 }
@@ -1196,6 +1234,12 @@ fn to_sse(ev: &ApiEvent) -> Event {
     Ok(json) => Event::default().event(ev.name()).data(json),
     Err(_) => Event::default().event("resync").data("0"),
   }
+}
+
+/// Contatos salvos na agenda do celular, cada um como a conversa com ele (vazia, se ainda
+/// não houver), em ordem de nome.
+pub async fn contacts(State(st): State<AppState>) -> ApiResult<Json<Vec<ChatSummary>>> {
+  Ok(Json(st.store.run(|db| db.contacts()).await?))
 }
 
 /// Pede ao celular a agenda inteira de novo, como num aparelho recém-pareado. Nenhuma
