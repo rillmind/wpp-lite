@@ -62,6 +62,7 @@ pub fn router(
     )
     .route("/api/chats/{jid}/avatar", get(handlers::avatar))
     .route("/api/chats/{jid}/messages/{id}/media", get(handlers::media))
+    .route("/api/chats/{jid}/messages/{id}/sound", get(handlers::sound))
     .route(
       "/api/chats/{jid}/messages/{id}/action",
       post(handlers::message_action),

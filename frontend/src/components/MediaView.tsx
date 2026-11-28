@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { api } from '../api/client'
-import { isLoaded, isStored, useImage } from '../api/images'
+import { isLoaded, isStored, loadImage, useImage } from '../api/images'
 import type { Message } from '../api/types'
 import { formatBytes, formatDuration } from './format'
 import { Icon } from './Icon'
@@ -51,7 +51,9 @@ export function MediaView({ chatJid, message }: { chatJid: string; message: Mess
   }, [path, attempt])
   const kind = message.kind
   const label = kind === 'doc' ? (message.media?.file_name ?? LABEL.doc) : (LABEL[kind] ?? 'Mídia')
+  const sound = message.media?.sound ? api.soundPath(chatJid, message.id) : null
   const details = [
+    sound ? 'com som' : null,
     message.media?.seconds ? formatDuration(message.media.seconds) : null,
     message.media?.size ? formatBytes(message.media.size) : null,
   ].filter(Boolean)
@@ -79,6 +81,7 @@ export function MediaView({ chatJid, message }: { chatJid: string; message: Mess
           path={path}
           kind={kind}
           label={label}
+          sound={sound}
           clicked={clicked}
           onRetry={() => {
             setClicked(true)
@@ -94,12 +97,14 @@ interface DownloadProps {
   path: string
   kind: string
   label: string
+  /** Som da figurinha com som (caminho na API). */
+  sound: string | null
   /** Pedida com clique agora; sem isso (já baixada antes) não toca nem salva sozinha. */
   clicked: boolean
   onRetry: () => void
 }
 
-function Download({ path, kind, label, clicked, onRetry }: DownloadProps) {
+function Download({ path, kind, label, sound, clicked, onRetry }: DownloadProps) {
   const file = useImage(path, true)
   const [zoom, setZoom] = useState(false)
   const save = useRef<HTMLAnchorElement>(null)
@@ -124,7 +129,13 @@ function Download({ path, kind, label, clicked, onRetry }: DownloadProps) {
           <span className="media__hint">Salvar de novo</span>
         </a>
       )
-    if (kind === 'sticker') return <img src={file.url} alt={label} />
+    if (kind === 'sticker')
+      return (
+        <>
+          <img src={file.url} alt={label} />
+          {sound && <StickerSound path={sound} />}
+        </>
+      )
     return (
       <>
         <button type="button" className="media__open" onClick={() => setZoom(true)} aria-label="Ampliar imagem">
@@ -143,6 +154,62 @@ function Download({ path, kind, label, clicked, onRetry }: DownloadProps) {
     )
   }
   return <span className="media__placeholder">Baixando…</span>
+}
+
+/** Quantas vezes o som toca por clique, como no WhatsApp. */
+const SOUND_PLAYS = 3
+
+/** Botão do som da figurinha: chega mudo, como no WhatsApp, e toca ao clicar. */
+function StickerSound({ path }: { path: string }) {
+  const [state, setState] = useState<'idle' | 'loading' | 'playing' | 'error'>('idle')
+  // Elemento na página: ao sair da tela (trocou de conversa) o navegador para o som sozinho.
+  const audio = useRef<HTMLAudioElement>(null)
+  const plays = useRef(0)
+
+  const toggle = async () => {
+    const el = audio.current
+    if (!el) return
+    if (state === 'playing') {
+      el.pause()
+      setState('idle')
+      return
+    }
+    setState('loading')
+    try {
+      const url = await loadImage(path)
+      if (!url) throw new Error('sem som')
+      if (el.src !== url) el.src = url
+      plays.current = 0
+      el.currentTime = 0
+      await el.play()
+      setState('playing')
+    } catch {
+      setState('error')
+    }
+  }
+
+  const onEnded = () => {
+    plays.current += 1
+    if (plays.current < SOUND_PLAYS) void audio.current?.play()
+    else setState('idle')
+  }
+
+  const label =
+    state === 'playing' ? 'Parar o som' : state === 'error' ? 'Som indisponível; tentar de novo' : 'Tocar o som'
+  return (
+    <>
+      <audio ref={audio} onEnded={onEnded} hidden />
+      <button
+        type="button"
+        className={`media__sound media__sound--${state}`}
+        onClick={() => void toggle()}
+        aria-label={label}
+        title={label}
+      >
+        <Icon name="sound" size={16} />
+      </button>
+    </>
+  )
 }
 
 function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {

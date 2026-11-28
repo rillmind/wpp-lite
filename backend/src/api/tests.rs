@@ -86,6 +86,7 @@ impl WhatsApp for FakeWa {
       height: media.height,
       seconds: media.seconds,
       file_name: media.file_name.clone(),
+      sound: None,
     };
     uploads.push(media);
     Ok((
@@ -637,6 +638,7 @@ fn media_ref(kind: MessageKind, mimetype: &str) -> MediaRef {
     height: Some(600),
     seconds: None,
     file_name: None,
+    sound: None,
   }
 }
 
@@ -667,7 +669,8 @@ async fn media_is_downloaded_on_demand_and_not_cached() {
       "width": 800,
       "height": 600,
       "seconds": null,
-      "file_name": null
+      "file_name": null,
+      "sound": false
     })
   );
   assert!(msgs[2].get("media").is_none(), "texto não tem mídia");
@@ -1486,4 +1489,51 @@ async fn every_response_has_security_headers() {
     assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
     assert_eq!(headers[header::REFERRER_POLICY], "no-referrer");
   }
+}
+
+#[tokio::test]
+async fn sticker_with_sound_serves_the_sound_and_deletes_it_with_the_message() {
+  let h = harness();
+  let mut sticker = incoming("fig", 10, true);
+  sticker.kind = MessageKind::Sticker;
+  seed(&h, vec![sticker, incoming("texto", 20, true)]).await;
+  h.store
+    .run(|db| {
+      let sound = MediaRef {
+        direct_path: "/v/t62/som".into(),
+        seconds: Some(3),
+        ..media_ref(MessageKind::Audio, "audio/ogg; codecs=opus")
+      };
+      let fig = MediaRef {
+        sound: Some(Box::new(sound)),
+        ..media_ref(MessageKind::Sticker, "image/webp")
+      };
+      db.insert_media(A, "fig", &fig)
+    })
+    .await
+    .unwrap();
+
+  let (_, json) = call(&h, "GET", &format!("/api/chats/{A}/messages"), None).await;
+  let msgs = json["messages"].as_array().unwrap();
+  assert_eq!(msgs[0]["media"]["sound"], true);
+  assert_eq!(
+    msgs[0]["media"]["mimetype"], "image/webp",
+    "a figurinha é a mídia principal"
+  );
+
+  let (status, ct, _, body) = get_raw(&h, &format!("/api/chats/{A}/messages/fig/sound")).await;
+  assert_eq!(status, StatusCode::OK);
+  assert_eq!(ct.as_deref(), Some("audio/ogg"));
+  assert_eq!(body, b"bytes de /v/t62/som");
+  let (status, ..) = get_raw(&h, &format!("/api/chats/{A}/messages/texto/sound")).await;
+  assert_eq!(status, StatusCode::NOT_FOUND, "sem som");
+
+  let (status, _) = msg_act(&h, "fig", json!({ "action": "delete_me" })).await;
+  assert_eq!(status, StatusCode::OK);
+  let left = h
+    .store
+    .run(|db| db.get_media(A, &crate::store::sound_key("fig")))
+    .await
+    .unwrap();
+  assert!(left.is_none(), "o som sai junto com a mensagem");
 }

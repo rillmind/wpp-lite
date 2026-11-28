@@ -87,6 +87,8 @@ export interface MediaInfo {
   seconds: number | null
   /** Nome do arquivo (documento). */
   file_name: string | null
+  /** Figurinha com som: o áudio sai em `api.soundPath`. */
+  sound: boolean
 }
 
 export interface MessagesPage {

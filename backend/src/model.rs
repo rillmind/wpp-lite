@@ -193,6 +193,8 @@ pub struct MediaInfo {
   pub seconds: Option<u32>,
   /// Nome do arquivo (documento).
   pub file_name: Option<String>,
+  /// Figurinha com som: o áudio sai em `.../messages/{id}/sound`.
+  pub sound: bool,
 }
 
 /// Referência para baixar uma mídia do CDN do WhatsApp na hora em que for vista.
@@ -212,6 +214,8 @@ pub struct MediaRef {
   pub height: Option<u32>,
   pub seconds: Option<u32>,
   pub file_name: Option<String>,
+  /// Som da figurinha com som. No banco vira uma linha à parte (ver `store::sound_key`).
+  pub sound: Option<Box<MediaRef>>,
 }
 
 impl MediaRef {
@@ -223,6 +227,7 @@ impl MediaRef {
       height: self.height,
       seconds: self.seconds,
       file_name: self.file_name.clone(),
+      sound: self.sound.is_some(),
     }
   }
 }

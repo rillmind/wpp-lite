@@ -874,6 +874,31 @@ code {
 .media--sticker img {
   object-fit: contain;
 }
+/* Som da figurinha: botão redondo no canto, aceso enquanto toca. */
+.media__sound {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--pal-text);
+  background: var(--pal-surface1);
+  cursor: pointer;
+}
+.media__sound--playing {
+  color: var(--pal-base);
+  background: var(--accent);
+}
+.media__sound--loading {
+  opacity: 0.6;
+}
+.media__sound--error {
+  color: var(--err);
+}
 .media video {
   display: block;
   width: 100%;

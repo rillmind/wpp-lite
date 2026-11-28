@@ -158,6 +158,8 @@ export const api = {
     }),
   avatarPath: (jid: string) => `/api/chats/${enc(jid)}/avatar`,
   mediaPath: (jid: string, id: string) => `/api/chats/${enc(jid)}/messages/${enc(id)}/media`,
+  /** Som da figurinha com som. */
+  soundPath: (jid: string, id: string) => `/api/chats/${enc(jid)}/messages/${enc(id)}/sound`,
   /** Envia um arquivo; o tipo (imagem, vídeo ou documento) sai do `Content-Type`. */
   sendMedia: (
     jid: string,

@@ -546,6 +546,7 @@ impl WhatsApp for RustWa {
       height: out.height,
       seconds: out.seconds,
       file_name: out.file_name.clone(),
+      sound: None,
     };
     let mut msg = match out.kind {
       MessageKind::Image => whatsapp_rust::media::image_message(
@@ -1775,6 +1776,19 @@ fn classify(message: &wa::Message) -> Option<Classified> {
   } else if let Some(x) = m.sticker_message.as_option() {
     // Figurinhas Lottie (animação vetorial) não são imagem; ficam como texto.
     if x.is_lottie != Some(true) {
+      // Figurinha com som: o áudio vem dentro dela.
+      let sound = x.audio_message.as_option().and_then(|a| {
+        media_ref(
+          MessageKind::Audio,
+          a.direct_path.as_deref(),
+          a.media_key.as_deref(),
+          a.file_sha256.as_deref(),
+          a.file_enc_sha256.as_deref(),
+          a.file_length,
+          a.mimetype.as_deref(),
+          (None, None, a.seconds),
+        )
+      });
       media = media_ref(
         MessageKind::Sticker,
         x.direct_path.as_deref(),
@@ -1784,7 +1798,11 @@ fn classify(message: &wa::Message) -> Option<Classified> {
         x.file_length,
         x.mimetype.as_deref(),
         (x.width, x.height, None),
-      );
+      )
+      .map(|r| MediaRef {
+        sound: sound.map(Box::new),
+        ..r
+      });
     }
     (MessageKind::Sticker, None, x.context_info.as_option())
   } else if has_visible_content(m) {
@@ -1838,6 +1856,7 @@ fn media_ref(
     height,
     seconds,
     file_name: None,
+    sound: None,
   })
 }
 
@@ -1848,6 +1867,7 @@ fn base_message(message: &wa::Message) -> &wa::Message {
   let mut m = message.get_base_message();
   loop {
     let inner = [
+      &m.audio_sticker_message,
       &m.lottie_sticker_message,
       &m.associated_child_message,
       &m.group_mentioned_message,
@@ -2052,6 +2072,46 @@ mod tests {
     };
     assert_eq!(kind(&pin), None);
     assert_eq!(kind(&key_only), None);
+  }
+
+  #[test]
+  fn sticker_with_sound_keeps_image_and_sound() {
+    let audio = wa::message::AudioMessage {
+      direct_path: Some("/v/som".into()),
+      file_sha256: Some(vec![1; 32]),
+      file_length: Some(9),
+      mimetype: Some("audio/ogg; codecs=opus".into()),
+      seconds: Some(3),
+      ..Default::default()
+    };
+    let sticker = wa::message::StickerMessage {
+      direct_path: Some("/v/fig".into()),
+      file_sha256: Some(vec![2; 32]),
+      file_length: Some(99),
+      mimetype: Some("image/webp".into()),
+      audio_message: buffa::MessageField::some(audio),
+      ..Default::default()
+    };
+    let m = wa::Message {
+      audio_sticker_message: buffa::MessageField::some(wa::message::FutureProofMessage {
+        message: buffa::MessageField::some(wa::Message {
+          sticker_message: buffa::MessageField::some(sticker),
+          ..Default::default()
+        }),
+      }),
+      message_context_info: context(),
+      ..Default::default()
+    };
+    let c = classify(&m).unwrap();
+    assert_eq!(c.kind, MessageKind::Sticker);
+    let media = c.media.unwrap();
+    assert_eq!(media.direct_path, "/v/fig");
+    let sound = media.sound.unwrap();
+    assert_eq!(
+      (sound.kind, sound.direct_path.as_str()),
+      (MessageKind::Audio, "/v/som")
+    );
+    assert_eq!(sound.seconds, Some(3));
   }
 
   #[test]
