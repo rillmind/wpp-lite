@@ -840,7 +840,9 @@ impl Presence {
         };
         match res {
           Ok(()) => {
-            tracing::debug!(online = want, "presença enviada");
+            // Em info: online é o que deixa o celular sem vibrar, então dá para conferir no log
+            // quando e por quanto tempo isso aconteceu (só muda ao abrir/sair de uma conversa).
+            tracing::info!(online = want, "presença enviada ao WhatsApp");
             *lock(&self.announced) = Some(want);
             // A conversa é aberta antes de o aviso de leitura chegar aqui, e o pedido feito
             // enquanto offline pode não valer: pede de novo a cada vez que fica online.
