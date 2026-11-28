@@ -267,6 +267,22 @@ fn contacts_include_agenda_with_or_without_chat() {
   let found = db.search_chats("ana", 10).unwrap();
   assert_eq!(found.len(), 1);
   assert_eq!(found[0].jid, OTHER);
+
+  // Grupo sem nenhuma mensagem (só conhecido pela lista de grupos) também é contato.
+  db.upsert_chat(&ChatMeta {
+    jid: GROUP.into(),
+    name: Some("Bairro".into()),
+    is_group: true,
+    ..Default::default()
+  })
+  .unwrap();
+  let names: Vec<_> = db
+    .contacts()
+    .unwrap()
+    .into_iter()
+    .map(|c| c.name.unwrap())
+    .collect();
+  assert_eq!(names, vec!["Ana", "Bairro", "José"]);
 }
 
 #[test]

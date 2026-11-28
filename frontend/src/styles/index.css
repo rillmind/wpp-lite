@@ -1368,8 +1368,8 @@ code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 3.25rem;
-  height: 3.25rem;
+  width: 2.6rem;
+  height: 2.6rem;
   border: 0;
   border-radius: 50%;
   color: var(--accent-fg);
@@ -1382,7 +1382,7 @@ code {
 }
 /* A lista rola por baixo do botão sem esconder a última conversa. */
 .sidebar .chat-list {
-  padding-bottom: 5rem;
+  padding-bottom: 4rem;
 }
 .dialog__backdrop--blur {
   background: rgb(var(--shade) / 0.45);

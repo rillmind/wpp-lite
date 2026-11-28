@@ -716,6 +716,22 @@ impl WhatsApp for RustWa {
     )
   }
 
+  async fn groups(&self) -> Result<Vec<(String, String)>> {
+    let groups = self
+      .client
+      .groups()
+      .get_participating()
+      .await
+      .map_err(|e| anyhow!("listando os grupos: {e}"))?;
+    Ok(
+      groups
+        .into_values()
+        .filter(|g| !g.is_parent_group)
+        .map(|g| (g.id.to_string(), g.subject))
+        .collect(),
+    )
+  }
+
   async fn phone_for_lid(&self, lid_jid: &str) -> Result<Option<String>> {
     let jid: Jid = lid_jid.parse().map_err(|e| anyhow!("jid inválido: {e}"))?;
     Ok(
