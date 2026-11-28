@@ -168,6 +168,7 @@ code {
 }
 
 .sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1356,6 +1357,50 @@ code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* "Nova conversa": botão redondo no canto da lista e a janela com os contatos */
+.new-chat {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border: 0;
+  border-radius: 50%;
+  color: var(--accent-fg);
+  background: var(--accent);
+  box-shadow: 0 4px 14px rgb(var(--shade) / 0.45);
+  cursor: pointer;
+}
+.new-chat:hover {
+  background: var(--accent-hover);
+}
+/* A lista rola por baixo do botão sem esconder a última conversa. */
+.sidebar .chat-list {
+  padding-bottom: 5rem;
+}
+.dialog__backdrop--blur {
+  background: rgb(var(--shade) / 0.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.new-chat__item {
+  width: 100%;
+  border: 0;
+  color: var(--fg);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+.new-chat__phone {
+  display: block;
+  color: var(--fg-muted);
+  font-size: 0.8rem;
 }
 .btn--danger {
   border-color: var(--pal-red);

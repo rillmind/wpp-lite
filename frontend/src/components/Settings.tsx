@@ -11,6 +11,9 @@ interface Props {
   onToggleNoRead: () => void
   typingInList: boolean
   onToggleTypingInList: () => void
+  /** Contatos da agenda sem mensagens aparecem em "Conversas". */
+  listContacts: boolean
+  onToggleListContacts: () => void
   /** Devolve o erro, ou `null` se o pedido foi aceito. */
   onResyncContacts: () => Promise<string | null>
   onClose: () => void
@@ -26,6 +29,8 @@ export function Settings({
   onToggleNoRead,
   typingInList,
   onToggleTypingInList,
+  listContacts,
+  onToggleListContacts,
   onResyncContacts,
   onClose,
 }: Props) {
@@ -75,6 +80,16 @@ export function Settings({
           <span className="setting__hint">
             Mostra na lista quem está digitando. Com o app em foco você aparece online mesmo sem conversa aberta, e o
             celular não vibra nesse tempo.
+          </span>
+        </span>
+      </label>
+      <label className="setting">
+        <input type="checkbox" checked={listContacts} onChange={onToggleListContacts} />
+        <span>
+          <span className="setting__name">Listar contatos em "Conversas"</span>
+          <span className="setting__hint">
+            Os contatos da agenda do celular sem nenhuma mensagem aparecem no fim da lista. A busca e o botão "+"
+            acham eles sempre.
           </span>
         </span>
       </label>

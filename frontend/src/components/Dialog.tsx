@@ -4,10 +4,12 @@ interface Props {
   title: string
   onClose: () => void
   children: ReactNode
+  /** Borra o que fica atrás da janela. */
+  blur?: boolean
 }
 
 /** Janela modal simples; Esc ou clicar fora fecha (sem fechar a conversa). */
-export function Dialog({ title, onClose, children }: Props) {
+export function Dialog({ title, onClose, children, blur }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -18,7 +20,9 @@ export function Dialog({ title, onClose, children }: Props) {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
   return (
-    <div className="dialog__backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className={blur ? 'dialog__backdrop dialog__backdrop--blur' : 'dialog__backdrop'}
+      onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <section className="dialog" role="dialog" aria-modal="true" aria-label={title}>
         <h2 className="dialog__title">{title}</h2>
         {children}

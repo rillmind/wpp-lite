@@ -80,6 +80,7 @@ pub fn router(
     .route("/api/phones/{digits}/chat", get(handlers::phone_chat))
     .route("/api/presence", post(handlers::presence))
     .route("/api/presence/watch", post(handlers::watch))
+    .route("/api/contacts", get(handlers::contacts))
     .route("/api/contacts/resync", post(handlers::resync_contacts))
     .route("/api/events", get(handlers::events))
     // Com token: quem lê o QR conecta o próprio celular a este servidor.

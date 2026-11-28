@@ -240,6 +240,36 @@ fn contact(jid: &str, contact_name: Option<&str>, push_name: Option<&str>) -> Co
 }
 
 #[test]
+fn contacts_include_agenda_with_or_without_chat() {
+  let db = db();
+  const OTHER: &str = "5511900001111@s.whatsapp.net";
+  // José tem conversa pelo @lid; Ana não tem nenhuma; o apelido sozinho não é contato.
+  db.insert_message(&msg(LID, "1", 10, false, true)).unwrap();
+  db.set_lid_map(LID, PN).unwrap();
+  db.upsert_contact(&contact(PN, Some("José"), None)).unwrap();
+  db.upsert_contact(&contact(OTHER, Some("Ana"), None))
+    .unwrap();
+  db.upsert_contact(&contact(
+    "5511922223333@s.whatsapp.net",
+    None,
+    Some("Só apelido"),
+  ))
+  .unwrap();
+
+  let list = db.contacts().unwrap();
+  let names: Vec<_> = list.iter().map(|c| c.name.as_deref().unwrap()).collect();
+  assert_eq!(names, vec!["Ana", "José"]);
+  assert_eq!(list[0].jid, OTHER);
+  assert_eq!(list[0].last_msg_ts, None);
+  assert_eq!(list[1].jid, LID, "a conversa que já existe, pelo @lid");
+
+  // A busca acha também quem ainda não tem conversa.
+  let found = db.search_chats("ana", 10).unwrap();
+  assert_eq!(found.len(), 1);
+  assert_eq!(found[0].jid, OTHER);
+}
+
+#[test]
 fn agenda_name_wins_and_reaches_lid_chat_through_phone() {
   let db = db();
   db.insert_message(&msg(LID, "1", 10, false, true)).unwrap();
