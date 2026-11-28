@@ -10,6 +10,8 @@ const PLACEHOLDER: Record<string, string> = {
   view_once: 'Visualização única — abra no celular',
   revoked: 'Mensagem apagada',
   other: '[mensagem]',
+  // Tipo novo ou que o app não mostra: o aviso deixa claro que algo chegou.
+  unknown: 'Mensagem de um tipo que o app ainda não reconhece — veja no celular',
 }
 
 export function messageText(m: Message): string {

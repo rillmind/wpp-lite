@@ -44,6 +44,7 @@ Tudo em `127.0.0.1`. As rotas exigem `Authorization: Bearer <token>`; só `/api/
 | `GET /api/search?q=` | busca local (2 a 100 caracteres, sem maiúsculas/acentos): `{ chats, messages }`, até 20 conversas pelo nome/telefone e 50 mensagens pelo texto, mais novas primeiro |
 | `GET /api/chats/{jid}/messages?limit=&before=` | últimas mensagens do banco local + `first_unread_id`; a primeira página sempre inclui todas as não lidas. Mensagens com imagem/figurinha trazem `media` |
 | `GET /api/chats/{jid}/messages/{id}/media` | baixa a imagem, figurinha, vídeo, áudio ou documento do WhatsApp na hora (`Cache-Control: no-store`; documento sempre como anexo; até 32 MB, vídeo até 100 MB) |
+| `GET /api/chats/{jid}/messages/{id}/sound` | o som da figurinha com som (`media.sound` na mensagem), baixado na hora como a mídia |
 | `GET /api/chats/{jid}/avatar` | foto de perfil, buscada na hora; `204` se não houver |
 | `POST /api/presence/watch` | `{ "jids": [...] }`: passa a receber "online" e "digitando…" destas conversas individuais, até 31 (deixa de acompanhar as outras); chegam como `chat.presence` e `chat.typing` no SSE |
 | `POST /api/contacts/resync` | pede ao celular a agenda inteira de novo, como num aparelho recém-pareado (sem mensagens); os nomes chegam depois como `chat.updated` no SSE. `204`, ou `503` sem conexão |

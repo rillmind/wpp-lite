@@ -113,7 +113,7 @@ function Reactions({ reactions, onToggle }: { reactions: Reaction[]; onToggle?: 
 
 const STATUS_ICON: Record<string, IconName> = { sent: 'check', delivered: 'checks', read: 'checks' }
 /** Ícone das mensagens sem conteúdo para mostrar. */
-const KIND_ICON: Record<string, IconName> = { view_once: 'camera', revoked: 'ban' }
+const KIND_ICON: Record<string, IconName> = { view_once: 'camera', revoked: 'ban', unknown: 'unknown' }
 
 export function Conversation({
   chat,
@@ -353,7 +353,13 @@ export function Conversation({
                     )}
                   </>
                 ) : (
-                  <span className={m.kind === 'text' ? 'bubble__text' : 'bubble__text bubble__text--media'}>
+                  <span
+                    className={
+                      m.kind === 'text'
+                        ? 'bubble__text'
+                        : `bubble__text bubble__text--media${m.kind === 'unknown' ? ' bubble__text--unknown' : ''}`
+                    }
+                  >
                     {m.kind === 'text' ? <RichText text={m.body ?? ''} mentions={m.mentions} onMention={onOpenPerson} onPhone={onOpenPhone} /> : (
                       <>
                         {KIND_ICON[m.kind] && <Icon name={KIND_ICON[m.kind]} size={15} className="bubble__kind" />}

@@ -15,6 +15,8 @@ WORKDIR /src
 # Cargo.lock ou o Cargo.toml muda.
 COPY Cargo.toml Cargo.lock ./
 COPY backend/Cargo.toml backend/
+# waproto com os campos da figurinha com som (ver vendor/waproto/LEIA-ME.md).
+COPY vendor/ vendor/
 # - clean: tira só o programa vazio, para o de verdade ser compilado.
 # - touch: o build script do waproto grava este arquivo depois do carimbo do cargo, que por isso
 #   recompilaria toda a whatsapp-rust no passo seguinte.

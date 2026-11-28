@@ -310,8 +310,10 @@ impl Db {
     let keep = if keep_starred { "AND starred = 0" } else { "" };
     tx.execute(
       &format!(
-        "DELETE FROM media WHERE chat_jid = ?1 AND msg_id IN
-           (SELECT id FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep})"
+        "DELETE FROM media WHERE chat_jid = ?1 AND (msg_id IN
+           (SELECT id FROM messages WHERE chat_jid = ?1 AND ts <= ?2 {keep})
+           OR msg_id IN (SELECT id || '{SOUND_SUFFIX}' FROM messages
+             WHERE chat_jid = ?1 AND ts <= ?2 {keep}))"
       ),
       params![chat_jid, upto],
     )?;
@@ -611,7 +613,7 @@ impl Db {
       params![chat_jid, id],
     )?;
     tx.execute(
-      "DELETE FROM media WHERE chat_jid = ?1 AND msg_id = ?2",
+      &format!("DELETE FROM media WHERE chat_jid = ?1 AND msg_id IN (?2, ?2 || '{SOUND_SUFFIX}')"),
       params![chat_jid, id],
     )?;
     tx.execute(
@@ -641,7 +643,7 @@ impl Db {
       params![chat_jid, id],
     )?;
     tx.execute(
-      "DELETE FROM media WHERE chat_jid = ?1 AND msg_id = ?2",
+      &format!("DELETE FROM media WHERE chat_jid = ?1 AND msg_id IN (?2, ?2 || '{SOUND_SUFFIX}')"),
       params![chat_jid, id],
     )?;
     tx.execute(
@@ -671,8 +673,12 @@ impl Db {
     Ok(())
   }
 
-  /// Guarda a referência de download da mídia de uma mensagem (não o arquivo).
+  /// Guarda a referência de download da mídia de uma mensagem (não o arquivo) e a do som,
+  /// se for figurinha com som.
   pub fn insert_media(&self, chat_jid: &str, msg_id: &str, m: &MediaRef) -> Result<()> {
+    if let Some(sound) = &m.sound {
+      self.insert_media(chat_jid, &sound_key(msg_id), sound)?;
+    }
     self.conn.execute(
       "INSERT INTO media (chat_jid, msg_id, kind, direct_path, media_key, file_sha256,
          file_enc_sha256, file_length, mimetype, width, height, seconds, file_name)
@@ -721,6 +727,7 @@ impl Db {
               height: r.get(8)?,
               seconds: r.get(9)?,
               file_name: r.get(10)?,
+              sound: None,
             })
           },
         )
@@ -1154,14 +1161,23 @@ fn display_name(name: Option<String>, pn: Option<String>) -> Option<String> {
   name.or_else(|| pn.map(|p| format!("+{}", jid_user(&p))))
 }
 
+/// O som da figurinha com som fica na tabela `media` como outra mídia, com esta chave (os ids
+/// do WhatsApp não têm `:`).
+const SOUND_SUFFIX: &str = ":som";
+
+pub fn sound_key(msg_id: &str) -> String {
+  format!("{msg_id}{SOUND_SUFFIX}")
+}
+
 fn msg_select() -> String {
   format!(
     "SELECT m.id, m.chat_jid, m.sender_jid, m.from_me, m.ts, m.kind, m.body, m.quoted_id,
        m.status, m.is_read, {},
        md.msg_id IS NOT NULL, md.mimetype, md.width, md.height, md.file_length, md.seconds, md.file_name,
-       m.starred, m.pinned_until, m.mentions, m.edited
+       m.starred, m.pinned_until, m.mentions, m.edited, snd.msg_id IS NOT NULL
      FROM messages m
      LEFT JOIN media md ON md.chat_jid = m.chat_jid AND md.msg_id = m.id
+     LEFT JOIN media snd ON snd.chat_jid = m.chat_jid AND snd.msg_id = m.id || '{SOUND_SUFFIX}'
      LEFT JOIN lid_map sm ON sm.lid = m.sender_jid
      LEFT JOIN contacts sd ON sd.jid = m.sender_jid
      LEFT JOIN contacts sp ON sp.jid = sm.pn",
@@ -1252,6 +1268,7 @@ fn message_from_row(r: &Row<'_>) -> rusqlite::Result<Message> {
         height: r.get(15)?,
         seconds: r.get(17)?,
         file_name: r.get(18)?,
+        sound: r.get(23)?,
       })
     } else {
       None

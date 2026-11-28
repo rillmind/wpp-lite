@@ -8,6 +8,7 @@ export type MessageKind =
   | 'view_once'
   | 'revoked'
   | 'other'
+  | 'unknown'
 export type MsgStatus = 'sent' | 'delivered' | 'read'
 export type ConnState = 'connecting' | 'waiting_qr' | 'connected' | 'disconnected' | 'logged_out'
 
@@ -86,6 +87,8 @@ export interface MediaInfo {
   seconds: number | null
   /** Nome do arquivo (documento). */
   file_name: string | null
+  /** Figurinha com som: o áudio sai em `api.soundPath`. */
+  sound: boolean
 }
 
 export interface MessagesPage {

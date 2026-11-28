@@ -538,9 +538,23 @@ pub async fn media(
 ) -> ApiResult<Response> {
   validate_jid(&jid)?;
   validate_msg_id(&id)?;
+  serve_media(st, jid, id).await
+}
+
+/// Som da figurinha com som, baixado na hora como as outras mídias.
+pub async fn sound(
+  State(st): State<AppState>,
+  Path((jid, id)): Path<(String, String)>,
+) -> ApiResult<Response> {
+  validate_jid(&jid)?;
+  validate_msg_id(&id)?;
+  serve_media(st, jid, crate::store::sound_key(&id)).await
+}
+
+async fn serve_media(st: AppState, jid: String, key: String) -> ApiResult<Response> {
   let media = st
     .store
-    .run(move |db| db.get_media(&jid, &id))
+    .run(move |db| db.get_media(&jid, &key))
     .await?
     .ok_or(ApiError::NotFound)?;
   let max = if media.kind == MessageKind::Video {
