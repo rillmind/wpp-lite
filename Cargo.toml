@@ -1,3 +1,9 @@
 [workspace]
 resolver = "2"
 members = ["backend"]
+# Cópia corrigida de uma dependência (ver vendor/waproto/LEIA-ME.md): não é código nosso, fica
+# de fora do fmt e do clippy.
+exclude = ["vendor"]
+
+[patch.crates-io]
+waproto = { path = "vendor/waproto" }
