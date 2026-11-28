@@ -24,6 +24,7 @@ const PATHS = {
   ban: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM5.6 5.6l12.8 12.8',
   send: 'M21 3L10 14M21 3l-6.5 18-3.5-7-7-3.5z',
   down: 'M12 5v14M6 13l6 6 6-6',
+  unknown: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01',
 }
 
 export type IconName = keyof typeof PATHS

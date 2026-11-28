@@ -8,6 +8,7 @@ export type MessageKind =
   | 'view_once'
   | 'revoked'
   | 'other'
+  | 'unknown'
 export type MsgStatus = 'sent' | 'delivered' | 'read'
 export type ConnState = 'connecting' | 'waiting_qr' | 'connected' | 'disconnected' | 'logged_out'
 

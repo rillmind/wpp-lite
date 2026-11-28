@@ -19,6 +19,9 @@ pub enum MessageKind {
   /// Apagada para todos por quem mandou.
   Revoked,
   Other,
+  /// Tipo que o app ainda não reconhece (novo no WhatsApp, por exemplo): aparece com
+  /// aviso, para não sumir da conversa sem ninguém saber.
+  Unknown,
 }
 
 impl MessageKind {
@@ -33,6 +36,7 @@ impl MessageKind {
       Self::ViewOnce => "view_once",
       Self::Revoked => "revoked",
       Self::Other => "other",
+      Self::Unknown => "unknown",
     }
   }
 
@@ -46,6 +50,7 @@ impl MessageKind {
       "sticker" => Self::Sticker,
       "view_once" => Self::ViewOnce,
       "revoked" => Self::Revoked,
+      "unknown" => Self::Unknown,
       _ => Self::Other,
     }
   }

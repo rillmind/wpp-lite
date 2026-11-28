@@ -483,6 +483,12 @@ code {
 .bubble__kind {
   margin-right: 0.3rem;
 }
+/* Tipo não reconhecido: em destaque, para ninguém achar que a conversa está completa. */
+.bubble__text--unknown {
+  color: var(--warn);
+  font-style: normal;
+  font-weight: 500;
+}
 .mention {
   color: var(--link);
   font-weight: 600;

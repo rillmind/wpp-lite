@@ -1699,7 +1699,7 @@ struct Classified {
 /// `None` para mensagens que não aparecem na conversa (reações, edições,
 /// apagamentos, controle de protocolo).
 fn classify(message: &wa::Message) -> Option<Classified> {
-  let m = message.get_base_message();
+  let m = base_message(message);
   if m.protocol_message.is_set() || m.reaction_message.is_set() {
     return None;
   }
@@ -1790,7 +1790,11 @@ fn classify(message: &wa::Message) -> Option<Classified> {
   } else if has_visible_content(m) {
     (MessageKind::Other, None, None)
   } else {
-    return None;
+    // Sem o conteúdo (nem o tipo) não há o que mostrar além do aviso; os números dos
+    // campos no log dizem o que chegou.
+    let fields = unrecognized_fields(m)?;
+    tracing::info!(fields = ?fields, "mensagem de tipo não reconhecido");
+    (MessageKind::Unknown, None, None)
   };
   let quoted_id = ctx.and_then(|c| c.stanza_id.clone());
   let mut mentions: Vec<Mention> = ctx
@@ -1835,6 +1839,96 @@ fn media_ref(
     seconds,
     file_name: None,
   })
+}
+
+/// A mensagem de dentro dos invólucros: os que a lib já tira (encaminhada por outro aparelho,
+/// temporária, visualização única, edição...) e os `FutureProofMessage` que embrulham
+/// conteúdo comum (figurinha com som, foto de álbum, menção a grupo...).
+fn base_message(message: &wa::Message) -> &wa::Message {
+  let mut m = message.get_base_message();
+  loop {
+    let inner = [
+      &m.lottie_sticker_message,
+      &m.associated_child_message,
+      &m.group_mentioned_message,
+      &m.limit_sharing_message,
+      &m.bot_forwarded_message,
+    ]
+    .into_iter()
+    .find_map(|w| w.as_option().and_then(|w| w.message.as_option()));
+    match inner {
+      Some(next) => m = next.get_base_message(),
+      None => return m,
+    }
+  }
+}
+
+/// Campos da `Message` que só acompanham o conteúdo: a chave do grupo (normal e
+/// "fast ratchet") e o `messageContextInfo`, que toda mensagem atual traz.
+const COMPANION_FIELDS: [u32; 3] = [2, 15, 35];
+const CONTEXT_INFO_FIELD: u32 = 35;
+
+/// Campos que não são conteúdo para mostrar: chamada, protocolo (apagar, editar...),
+/// reação, sincronização de figurinhas, voto e opção de enquete, manter e fixar na
+/// conversa, histórico, comentário e resposta a evento cifrados, álbum (as fotos chegam
+/// cada uma na sua mensagem), tarefa de bot, interação com figurinha de status e chaves.
+const CONTROL_FIELDS: [u32; 20] = [
+  10, 12, 31, 46, 47, 50, 51, 56, 63, 70, 71, 76, 82, 83, 100, 102, 110, 121, 123, 127,
+];
+
+/// Números dos campos de uma mensagem sem nada que o app saiba mostrar, ou `None` se ela
+/// é só de controle. Mensagem vazia com `messageContextInfo` também conta: é como chega um
+/// tipo novo, que a lib não conhece e descarta ao decodificar.
+fn unrecognized_fields(m: &wa::Message) -> Option<Vec<u32>> {
+  use buffa::Message as _;
+  let fields = top_level_fields(&m.encode_to_vec());
+  let content: Vec<u32> = fields
+    .iter()
+    .copied()
+    .filter(|f| !COMPANION_FIELDS.contains(f))
+    .collect();
+  if content.iter().any(|f| CONTROL_FIELDS.contains(f)) {
+    return None;
+  }
+  if content.is_empty() && !fields.contains(&CONTEXT_INFO_FIELD) {
+    return None;
+  }
+  Some(content)
+}
+
+/// Números dos campos de primeiro nível de uma mensagem protobuf, sem repetir.
+fn top_level_fields(mut buf: &[u8]) -> Vec<u32> {
+  fn varint(buf: &mut &[u8]) -> Option<u64> {
+    let mut value = 0u64;
+    for shift in (0..64).step_by(7) {
+      let (&byte, rest) = buf.split_first()?;
+      *buf = rest;
+      value |= u64::from(byte & 0x7f) << shift;
+      if byte & 0x80 == 0 {
+        return Some(value);
+      }
+    }
+    None
+  }
+  let mut fields = Vec::new();
+  while let Some(key) = varint(&mut buf) {
+    let skip = match key & 7 {
+      0 => varint(&mut buf).map(|_| 0),
+      1 => Some(8),
+      2 => varint(&mut buf).and_then(|len| usize::try_from(len).ok()),
+      5 => Some(4),
+      _ => None,
+    };
+    let Some(skip) = skip.filter(|n| *n <= buf.len()) else {
+      break;
+    };
+    buf = &buf[skip..];
+    let number = u32::try_from(key >> 3).unwrap_or(0);
+    if !fields.contains(&number) {
+      fields.push(number);
+    }
+  }
+  fields
 }
 
 /// Outros tipos que aparecem na conversa (localização, contato, enquete...).
@@ -1898,4 +1992,80 @@ fn now_secs() -> i64 {
     .duration_since(std::time::UNIX_EPOCH)
     .map(|d| d.as_secs() as i64)
     .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn context() -> buffa::MessageField<wa::MessageContextInfo> {
+    buffa::MessageField::some(wa::MessageContextInfo::default())
+  }
+
+  fn kind(m: &wa::Message) -> Option<MessageKind> {
+    classify(m).map(|c| c.kind)
+  }
+
+  #[test]
+  fn reads_top_level_field_numbers() {
+    use buffa::Message as _;
+    let m = wa::Message {
+      conversation: Some("oi".into()),
+      message_context_info: context(),
+      ..Default::default()
+    };
+    assert_eq!(top_level_fields(&m.encode_to_vec()), vec![1, 35]);
+    assert!(top_level_fields(&[0xff]).is_empty(), "lixo não trava");
+  }
+
+  #[test]
+  fn empty_message_with_context_is_unknown() {
+    // Tipo novo que a lib descartou ao decodificar: sobra só o messageContextInfo.
+    let m = wa::Message {
+      message_context_info: context(),
+      ..Default::default()
+    };
+    assert_eq!(kind(&m), Some(MessageKind::Unknown));
+    assert_eq!(kind(&wa::Message::default()), None, "vazia de verdade some");
+  }
+
+  #[test]
+  fn known_but_unsupported_type_is_unknown() {
+    let m = wa::Message {
+      group_invite_message: buffa::MessageField::some(Default::default()),
+      message_context_info: context(),
+      ..Default::default()
+    };
+    assert_eq!(kind(&m), Some(MessageKind::Unknown));
+  }
+
+  #[test]
+  fn control_messages_stay_hidden() {
+    let pin = wa::Message {
+      pin_in_chat_message: buffa::MessageField::some(Default::default()),
+      message_context_info: context(),
+      ..Default::default()
+    };
+    let key_only = wa::Message {
+      sender_key_distribution_message: buffa::MessageField::some(Default::default()),
+      ..Default::default()
+    };
+    assert_eq!(kind(&pin), None);
+    assert_eq!(kind(&key_only), None);
+  }
+
+  #[test]
+  fn wrapped_content_is_unwrapped() {
+    let inner = wa::Message {
+      image_message: buffa::MessageField::some(Default::default()),
+      ..Default::default()
+    };
+    let m = wa::Message {
+      associated_child_message: buffa::MessageField::some(wa::message::FutureProofMessage {
+        message: buffa::MessageField::some(inner),
+      }),
+      ..Default::default()
+    };
+    assert_eq!(kind(&m), Some(MessageKind::Image));
+  }
 }
